@@ -1,0 +1,6 @@
+{
+  "name": "Al Quran Editor",
+  "description": "Comprehensive Al Quran Editor app with surah reading, reciter audios, timing LRC/SRT generators, planner, library, and topics",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

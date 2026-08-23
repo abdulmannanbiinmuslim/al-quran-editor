@@ -1,5 +1,10 @@
 package com.example.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -41,6 +47,11 @@ fun formatTimeMs(ms: Long): String {
     return String.format("%02d:%02d", minutes, seconds)
 }
 
+/**
+ * Reusable Full-Featured Audio Player Bottom Sheet for Quran Recitations
+ * Includes: Play/Pause, Interactive Seek Bar with timestamps, Full Track & Reciter Info,
+ * Arabic Scripture in chosen Font, Speed switcher, Repeat controller, and Share/Download links.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReciterAudioPlayerBottomSheet(
@@ -48,17 +59,19 @@ fun ReciterAudioPlayerBottomSheet(
     selectedFont: QuranFontFamily = QuranFontFamily.UTHMANIC_HAFS,
     onPlayPauseToggle: () -> Unit,
     onSeekTo: (Long) -> Unit,
-    onSeekForward: () -> Unit,
-    onSeekBackward: () -> Unit,
-    onSkipNext: () -> Unit,
-    onSkipPrevious: () -> Unit,
-    onSpeedChange: (Float) -> Unit,
-    onRepeatCountChange: (Int) -> Unit,
-    onOpenReciterSelector: () -> Unit,
-    onOpenAudioEditor: () -> Unit,
-    onAddBookmark: (AyahItem) -> Unit,
+    onSeekForward: () -> Unit = {},
+    onSeekBackward: () -> Unit = {},
+    onSkipNext: () -> Unit = {},
+    onSkipPrevious: () -> Unit = {},
+    onSpeedChange: (Float) -> Unit = {},
+    onRepeatCountChange: (Int) -> Unit = {},
+    onOpenReciterSelector: () -> Unit = {},
+    onOpenAudioEditor: () -> Unit = {},
+    onOpenTimingGenerator: () -> Unit = {},
+    onAddBookmark: (AyahItem) -> Unit = {},
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val surah = QuranData.surahs.find { it.number == audioState.currentSurahNumber } ?: QuranData.surahs[0]
     val currentAyah = audioState.currentAyah ?: QuranData.getAyahsForSurah(audioState.currentSurahNumber).find {
@@ -101,18 +114,18 @@ fun ReciterAudioPlayerBottomSheet(
                 .padding(bottom = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Sheet Header Row
+            // Sheet Header Row (Surah badge + Ayah indicator + Close button)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    color = IslamicEmeraldContainer.copy(alpha = 0.6f),
+                    color = IslamicEmeraldContainer.copy(alpha = 0.7f),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -123,7 +136,7 @@ fun ReciterAudioPlayerBottomSheet(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "${surah.englishName} (${surah.arabicName}) • আয়াত ${audioState.currentAyahNumber}",
+                            text = "${surah.englishName} (${surah.arabicName}) • আয়াত ${audioState.currentAyahNumber}/${surah.totalAyahs}",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = IslamicEmeraldPrimary
@@ -146,7 +159,7 @@ fun ReciterAudioPlayerBottomSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Reciter Info Card
+            // Track & Reciter Info Card
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -216,7 +229,7 @@ fun ReciterAudioPlayerBottomSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Active Ayah Preview Card (Arabic + Translation)
+            // Active Track / Ayah Preview Card (Arabic Scripture in active font + Bangla translation)
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = IslamicEmeraldContainer.copy(alpha = 0.35f),
@@ -257,7 +270,7 @@ fun ReciterAudioPlayerBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Progress Slider & Timestamps
+            // Seek Bar Slider & Timestamps
             Column(modifier = Modifier.fillMaxWidth()) {
                 Slider(
                     value = progressFraction,
@@ -312,7 +325,7 @@ fun ReciterAudioPlayerBottomSheet(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Primary Playback Controls Row (Previous, -10s, Play/Pause, +10s, Next)
+            // Primary Playback Controls Row (Skip Previous, -10s Rewind, Play/Pause/Buffer FAB, +10s Forward, Skip Next)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -418,7 +431,7 @@ fun ReciterAudioPlayerBottomSheet(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Secondary Controls (Speed, Repeat Ayah, Loop Range, Bookmark)
+            // Secondary Controls (Speed, Repeat Ayah, Audio Range Editor, Bookmark, Direct MP3 Link)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -492,6 +505,43 @@ fun ReciterAudioPlayerBottomSheet(
                     )
                 }
 
+                // Timing File Generator (.lrc / .srt)
+                IconButton(
+                    onClick = {
+                        onDismiss()
+                        onOpenTimingGenerator()
+                    },
+                    modifier = Modifier.size(38.dp).testTag("timing_file_generator_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Timer,
+                        contentDescription = "Timing Sync Files (.lrc / .srt)",
+                        tint = IslamicEmeraldPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Copy / Share Direct Audio Link
+                IconButton(
+                    onClick = {
+                        val s = surah.number.toString().padStart(3, '0')
+                        val a = currentAyah.ayahNumberInSurah.toString().padStart(3, '0')
+                        val url = "https://everyayah.com/data/${audioState.currentReciter.serverFolder}/$s$a.mp3"
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("Ayah MP3 Link", url)
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(context, "MP3 অডিও ডাউনলোড লিঙ্ক কপি হয়েছে!", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Download,
+                        contentDescription = "Copy Audio Link",
+                        tint = IslamicEmeraldPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
                 // Bookmark Ayah Button
                 IconButton(
                     onClick = { onAddBookmark(currentAyah) },
@@ -515,7 +565,7 @@ fun ReciterAudioPlayerBottomSheet(
             title = { Text("প্লেব্যাক গতি নির্বাচন করুন", fontWeight = FontWeight.Bold) },
             text = {
                 Column {
-                    val speeds = listOf(0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+                    val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
                     speeds.forEach { speed ->
                         Row(
                             modifier = Modifier
@@ -600,13 +650,16 @@ fun ReciterAudioPlayerBottomSheet(
 }
 
 /**
- * Compact Floating Mini Player Bar displayed when audio is playing or paused
+ * Reusable Persistent Floating Mini Media Player Component
+ * Automatically displays track info, dynamic progress bar, reciter avatar, and audio controls.
  */
 @Composable
-fun MiniAudioPlayerBar(
+fun PersistentAudioPlayerBar(
     audioState: AudioPlayerState,
     onExpandPlayer: () -> Unit,
     onPlayPauseToggle: () -> Unit,
+    onSkipNext: () -> Unit = {},
+    onSkipPrevious: () -> Unit = {},
     onClosePlayer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -623,7 +676,7 @@ fun MiniAudioPlayerBar(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp)
             .clickable(onClick = onExpandPlayer)
-            .testTag("mini_audio_player_bar"),
+            .testTag("persistent_audio_player_bar"),
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = 6.dp,
@@ -631,7 +684,7 @@ fun MiniAudioPlayerBar(
         border = androidx.compose.foundation.BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.35f))
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Top Slim Progress Bar
+            // Slim Real-time Track Progress Bar
             LinearProgressIndicator(
                 progress = { progressFraction },
                 modifier = Modifier
@@ -648,7 +701,7 @@ fun MiniAudioPlayerBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Reciter Avatar & Surah / Ayah info
+                // Reciter Avatar Badge & Track Info
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
@@ -681,8 +734,22 @@ fun MiniAudioPlayerBar(
                     }
                 }
 
-                // Controls
+                // Controls: Previous, Play/Pause/Buffer, Next, Close
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (audioState.hasPrevious) {
+                        IconButton(
+                            onClick = onSkipPrevious,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SkipPrevious,
+                                contentDescription = "Previous Ayah",
+                                tint = IslamicEmeraldPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
                     FilledTonalIconButton(
                         onClick = onPlayPauseToggle,
                         modifier = Modifier.size(36.dp),
@@ -706,6 +773,20 @@ fun MiniAudioPlayerBar(
                         }
                     }
 
+                    if (audioState.hasNext) {
+                        IconButton(
+                            onClick = onSkipNext,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SkipNext,
+                                contentDescription = "Next Ayah",
+                                tint = IslamicEmeraldPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
                     Spacer(modifier = Modifier.width(4.dp))
 
                     IconButton(
@@ -724,3 +805,24 @@ fun MiniAudioPlayerBar(
         }
     }
 }
+
+/**
+ * Backward compatibility alias for MiniAudioPlayerBar
+ */
+@Composable
+fun MiniAudioPlayerBar(
+    audioState: AudioPlayerState,
+    onExpandPlayer: () -> Unit,
+    onPlayPauseToggle: () -> Unit,
+    onClosePlayer: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    PersistentAudioPlayerBar(
+        audioState = audioState,
+        onExpandPlayer = onExpandPlayer,
+        onPlayPauseToggle = onPlayPauseToggle,
+        onClosePlayer = onClosePlayer,
+        modifier = modifier
+    )
+}
+

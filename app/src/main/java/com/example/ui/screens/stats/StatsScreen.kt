@@ -18,6 +18,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.CloudSyncStatus
+import com.example.data.model.UserProfile
+import com.example.data.model.UserQuranCloudData
+import com.example.ui.components.FirebaseAuthStatsCard
 import com.example.ui.theme.IslamicEmeraldContainer
 import com.example.ui.theme.IslamicEmeraldPrimary
 import com.example.ui.theme.QuranGold
@@ -28,6 +32,13 @@ fun StatsScreen(
     readTodayMinutes: Int,
     readTargetMinutes: Int,
     weeklyStats: List<Pair<String, Int>>,
+    currentUser: UserProfile? = null,
+    cloudSyncStatus: CloudSyncStatus = CloudSyncStatus(),
+    cloudUserData: UserQuranCloudData? = null,
+    onSignInWithGoogle: () -> Unit = {},
+    onQuickSignIn: () -> Unit = {},
+    onSyncNow: () -> Unit = {},
+    onSignOut: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -37,6 +48,19 @@ fun StatsScreen(
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
+        // TOP: Firebase Authentication & Cloud Firestore Persistence
+        FirebaseAuthStatsCard(
+            user = currentUser,
+            syncStatus = cloudSyncStatus,
+            cloudData = cloudUserData,
+            onSignInWithGoogle = onSignInWithGoogle,
+            onQuickSignIn = onQuickSignIn,
+            onSyncNow = onSyncNow,
+            onSignOut = onSignOut
+        )
+
+        Spacer(modifier = Modifier.height(18.dp))
+
         Text(
             text = "Quran Reading Insights",
             style = MaterialTheme.typography.titleMedium.copy(
@@ -45,7 +69,7 @@ fun StatsScreen(
             )
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         // Top Streak & Daily Target Cards
         Row(

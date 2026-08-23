@@ -1,9 +1,12 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.audio.AudioPlayerManager
+import com.example.data.auth.FirebaseAuthService
+import com.example.data.firestore.QuranFirestoreSyncService
 import com.example.data.model.*
 import com.example.data.repository.QuranData
 import com.example.data.repository.RecitersData
@@ -18,6 +21,13 @@ import kotlinx.coroutines.launch
 class QuranViewModel(application: Application) : AndroidViewModel(application) {
 
     val audioPlayer = AudioPlayerManager(application)
+    val authService = FirebaseAuthService(application)
+    val firestoreService = QuranFirestoreSyncService(application)
+
+    // Firebase Auth & Firestore State
+    val currentUser = authService.currentUser
+    val cloudSyncStatus = firestoreService.syncStatus
+    val cloudUserData = firestoreService.cloudUserData
 
     // Main Navigation
     private val _currentTab = MutableStateFlow(0) // 0: Home, 1: Planner, 2: Topics, 3: Library, 4: Stats
@@ -86,6 +96,15 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isPlayerBottomSheetOpen = MutableStateFlow(false)
     val isPlayerBottomSheetOpen = _isPlayerBottomSheetOpen.asStateFlow()
+
+    private val _isTimingGeneratorOpen = MutableStateFlow(false)
+    val isTimingGeneratorOpen = _isTimingGeneratorOpen.asStateFlow()
+
+    private val _isFontSettingsOpen = MutableStateFlow(false)
+    val isFontSettingsOpen = _isFontSettingsOpen.asStateFlow()
+
+    private val _isThemeSelectorOpen = MutableStateFlow(false)
+    val isThemeSelectorOpen = _isThemeSelectorOpen.asStateFlow()
 
     private val _isDownloadManagerOpen = MutableStateFlow(false)
     val isDownloadManagerOpen = _isDownloadManagerOpen.asStateFlow()
@@ -167,6 +186,26 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
         "S" to 5
     )
 
+    private val _weeklyReadingSummary = MutableStateFlow(
+        WeeklyReadingSummary(
+            metrics = listOf(
+                DailyVersesMetric(dayOfWeek = "Sun", dateLabel = "17 Aug", versesCount = 28, minutesSpent = 15, goalVerses = 30),
+                DailyVersesMetric(dayOfWeek = "Mon", dateLabel = "18 Aug", versesCount = 45, minutesSpent = 28, goalVerses = 30),
+                DailyVersesMetric(dayOfWeek = "Tue", dateLabel = "19 Aug", versesCount = 18, minutesSpent = 10, goalVerses = 30),
+                DailyVersesMetric(dayOfWeek = "Wed", dateLabel = "20 Aug", versesCount = 56, minutesSpent = 35, goalVerses = 30),
+                DailyVersesMetric(dayOfWeek = "Thu", dateLabel = "21 Aug", versesCount = 38, minutesSpent = 22, goalVerses = 30),
+                DailyVersesMetric(dayOfWeek = "Fri", dateLabel = "22 Aug", versesCount = 85, minutesSpent = 50, goalVerses = 30),
+                DailyVersesMetric(dayOfWeek = "Sat", dateLabel = "23 Aug", versesCount = 42, minutesSpent = 26, goalVerses = 30)
+            ),
+            streakDays = 6,
+            totalVersesThisWeek = 312,
+            averageVersesPerDay = 44,
+            totalMinutesThisWeek = 186,
+            goalVersesDaily = 30
+        )
+    )
+    val weeklyReadingSummary = _weeklyReadingSummary.asStateFlow()
+
     fun setTab(tab: Int) {
         _currentTab.value = tab
     }
@@ -231,6 +270,130 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setPlayerBottomSheetOpen(open: Boolean) {
         _isPlayerBottomSheetOpen.value = open
+    }
+
+    fun setTimingGeneratorOpen(open: Boolean) {
+        _isTimingGeneratorOpen.value = open
+    }
+
+    fun setFontSettingsOpen(open: Boolean) {
+        _isFontSettingsOpen.value = open
+    }
+
+    fun setThemeSelectorOpen(open: Boolean) {
+        _isThemeSelectorOpen.value = open
+    }
+
+    fun setAppColorTheme(theme: AppColorTheme) {
+        _readingSettings.value = _readingSettings.value.copy(appColorTheme = theme)
+    }
+
+    fun setNightModeOption(option: NightModeOption) {
+        _readingSettings.value = _readingSettings.value.copy(nightModeOption = option)
+    }
+
+    fun toggleNightMode() {
+        val current = _readingSettings.value.nightModeOption
+        val next = when (current) {
+            NightModeOption.LIGHT -> NightModeOption.NIGHT
+            NightModeOption.NIGHT -> NightModeOption.LIGHT
+            NightModeOption.OLED_BLACK -> NightModeOption.LIGHT
+            NightModeOption.SYSTEM -> NightModeOption.NIGHT
+        }
+        _readingSettings.value = _readingSettings.value.copy(nightModeOption = next)
+    }
+
+    fun setHighContrastNightText(enabled: Boolean) {
+        _readingSettings.value = _readingSettings.value.copy(highContrastNightText = enabled)
+    }
+
+    fun setFontFamily(font: QuranFontFamily) {
+        _readingSettings.value = _readingSettings.value.copy(selectedFont = font)
+    }
+
+    fun setArabicFontSize(sizeSp: Float) {
+        _readingSettings.value = _readingSettings.value.copy(arabicFontSizeSp = sizeSp.coerceIn(18f, 52f))
+    }
+
+    fun setArabicLineHeightMultiplier(multiplier: Float) {
+        _readingSettings.value = _readingSettings.value.copy(arabicLineHeightMultiplier = multiplier.coerceIn(1.2f, 2.6f))
+    }
+
+    fun setArabicLetterSpacing(spacingSp: Float) {
+        _readingSettings.value = _readingSettings.value.copy(arabicLetterSpacingSp = spacingSp.coerceIn(-1.5f, 4f))
+    }
+
+    fun setArabicFontWeight(weight: String) {
+        _readingSettings.value = _readingSettings.value.copy(arabicFontWeight = weight)
+    }
+
+    fun resetTypographySettings() {
+        _readingSettings.value = _readingSettings.value.copy(
+            selectedFont = QuranFontFamily.UTHMANIC_HAFS,
+            arabicFontSizeSp = 28f,
+            arabicLineHeightMultiplier = 1.7f,
+            arabicLetterSpacingSp = 0f,
+            arabicFontWeight = "Bold"
+        )
+    }
+
+    fun applyTypographyPreset(presetKey: String) {
+        when (presetKey) {
+            "madani_standard" -> {
+                _readingSettings.value = _readingSettings.value.copy(
+                    selectedFont = QuranFontFamily.UTHMANIC_HAFS,
+                    arabicFontSizeSp = 28f,
+                    arabicLineHeightMultiplier = 1.65f,
+                    arabicLetterSpacingSp = 0f,
+                    arabicFontWeight = "Bold"
+                )
+            }
+            "amiri_classical" -> {
+                _readingSettings.value = _readingSettings.value.copy(
+                    selectedFont = QuranFontFamily.UTHMANIC_AMIRI,
+                    arabicFontSizeSp = 30f,
+                    arabicLineHeightMultiplier = 1.75f,
+                    arabicLetterSpacingSp = 0.2f,
+                    arabicFontWeight = "Bold"
+                )
+            }
+            "indopak_clarity" -> {
+                _readingSettings.value = _readingSettings.value.copy(
+                    selectedFont = QuranFontFamily.INDOPAK_NOOREHIDAYAT,
+                    arabicFontSizeSp = 30f,
+                    arabicLineHeightMultiplier = 1.8f,
+                    arabicLetterSpacingSp = 0f,
+                    arabicFontWeight = "Bold"
+                )
+            }
+            "indopak_nastaleeq" -> {
+                _readingSettings.value = _readingSettings.value.copy(
+                    selectedFont = QuranFontFamily.INDOPAK_NASTALEEQ,
+                    arabicFontSizeSp = 32f,
+                    arabicLineHeightMultiplier = 1.95f,
+                    arabicLetterSpacingSp = 0f,
+                    arabicFontWeight = "Normal"
+                )
+            }
+            "elder_large_print" -> {
+                _readingSettings.value = _readingSettings.value.copy(
+                    selectedFont = QuranFontFamily.INDOPAK_NOOREHUDA,
+                    arabicFontSizeSp = 36f,
+                    arabicLineHeightMultiplier = 1.85f,
+                    arabicLetterSpacingSp = 0.5f,
+                    arabicFontWeight = "Bold"
+                )
+            }
+            "compact_mushaf" -> {
+                _readingSettings.value = _readingSettings.value.copy(
+                    selectedFont = QuranFontFamily.UTHMANIC_DIGITALKHAT,
+                    arabicFontSizeSp = 24f,
+                    arabicLineHeightMultiplier = 1.55f,
+                    arabicLetterSpacingSp = 0f,
+                    arabicFontWeight = "Medium"
+                )
+            }
+        }
     }
 
     fun setDownloadManagerOpen(open: Boolean, reciter: ReciterItem? = null) {
@@ -363,6 +526,48 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
         if (!list.any { it.title == item.title }) {
             list.add(item.copy(id = "plan_${System.currentTimeMillis()}"))
             _activePlanners.value = list
+        }
+    }
+
+    // Firebase Authentication & Cloud Firestore Persistence Methods
+    fun signInWithGoogle(activityContext: Context) {
+        viewModelScope.launch {
+            val result = authService.signInWithGoogle(activityContext)
+            result.onSuccess { user ->
+                syncWithFirestore(user)
+            }
+        }
+    }
+
+    fun quickConnectAccount(email: String = "abdulmannan.biinmuslim@gmail.com", name: String = "Abdul Mannan") {
+        authService.signInWithAccount(email, name)
+        currentUser.value?.let { user ->
+            syncWithFirestore(user)
+        }
+    }
+
+    fun signOutFromFirebase() {
+        authService.signOut()
+    }
+
+    fun syncWithFirestore(forcedUser: UserProfile? = null) {
+        val user = forcedUser ?: currentUser.value ?: return
+        viewModelScope.launch {
+            firestoreService.syncUserData(
+                user = user,
+                streakDays = currentStreakDays.value,
+                readTodayMinutes = readTodayMinutes.value,
+                readTargetMinutes = readTargetMinutes.value,
+                totalVersesRead = 427,
+                surahsCompleted = 4,
+                totalListeningMinutes = 185,
+                weeklyStats = weeklyStats,
+                readingSettings = _readingSettings.value,
+                pinnedCount = _pinnedAyahs.value.size,
+                notesCount = _userNotes.value.size,
+                lastReadSurah = _currentSurah.value.number,
+                lastReadAyah = 1
+            )
         }
     }
 

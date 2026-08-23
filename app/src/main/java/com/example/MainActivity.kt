@@ -94,6 +94,8 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
     val isTajweedGuideOpen by viewModel.isTajweedGuideOpen.collectAsStateWithLifecycle()
     val isReciterSelectorOpen by viewModel.isReciterSelectorOpen.collectAsStateWithLifecycle()
     val isPlayerBottomSheetOpen by viewModel.isPlayerBottomSheetOpen.collectAsStateWithLifecycle()
+    val isTimingGeneratorOpen by viewModel.isTimingGeneratorOpen.collectAsStateWithLifecycle()
+    val isFontSettingsOpen by viewModel.isFontSettingsOpen.collectAsStateWithLifecycle()
     val isDownloadManagerOpen by viewModel.isDownloadManagerOpen.collectAsStateWithLifecycle()
     val selectedReciterForDownload by viewModel.selectedReciterForDownload.collectAsStateWithLifecycle()
 
@@ -109,6 +111,11 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
     val streakDays by viewModel.currentStreakDays.collectAsStateWithLifecycle()
     val readTodayMin by viewModel.readTodayMinutes.collectAsStateWithLifecycle()
     val readTargetMin by viewModel.readTargetMinutes.collectAsStateWithLifecycle()
+
+    val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    val cloudSyncStatus by viewModel.cloudSyncStatus.collectAsStateWithLifecycle()
+    val cloudUserData by viewModel.cloudUserData.collectAsStateWithLifecycle()
+    val weeklyReadingSummary by viewModel.weeklyReadingSummary.collectAsStateWithLifecycle()
 
     var showNoteDialogForAyah by remember { mutableStateOf<AyahItem?>(null) }
 
@@ -129,6 +136,8 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                     scope.launch { drawerState.close() }
                     when (itemId) {
                         "jump_to_ayah" -> viewModel.setJumpToAyahOpen(true)
+                        "font_studio" -> viewModel.setFontSettingsOpen(true)
+                        "timing_sync" -> viewModel.setTimingGeneratorOpen(true)
                         "settings" -> viewModel.setQuickSettingsOpen(true)
                         "view_tutorials" -> viewModel.setTajweedGuideOpen(true)
                         "share_app" -> {
@@ -286,6 +295,7 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                             }
                         },
                         onOpenQuickSettings = { viewModel.setQuickSettingsOpen(true) },
+                        onOpenFontSettings = { viewModel.setFontSettingsOpen(true) },
                         onOpenContents = { viewModel.setQuickSettingsOpen(true) },
                         onToggleAutoScroll = { viewModel.toggleAutoScroll() },
                         onAutoScrollSpeedChange = { viewModel.setAutoScrollSpeed(it) },
@@ -305,6 +315,9 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                         onAddBookmark = { ayah ->
                             viewModel.addPin(ayah)
                             Toast.makeText(context, "Added Ayah ${ayah.ayahNumberInSurah} to Pins", Toast.LENGTH_SHORT).show()
+                        },
+                        onAddNoteClick = { ayah ->
+                            showNoteDialogForAyah = ayah
                         }
                     )
                 } else {
@@ -319,7 +332,9 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                                 viewModel.setPlayerBottomSheetOpen(true)
                             },
                             lastReadList = lastReadList,
-                            searchQuery = searchQuery
+                            searchQuery = searchQuery,
+                            weeklyReadingSummary = weeklyReadingSummary,
+                            onViewFullStats = { viewModel.setTab(4) }
                         )
                         1 -> PlannerScreen(
                             activeSubTab = plannerSubTab,
@@ -347,17 +362,26 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                             currentStreakDays = streakDays,
                             readTodayMinutes = readTodayMin,
                             readTargetMinutes = readTargetMin,
-                            weeklyStats = viewModel.weeklyStats
+                            weeklyStats = viewModel.weeklyStats,
+                            currentUser = currentUser,
+                            cloudSyncStatus = cloudSyncStatus,
+                            cloudUserData = cloudUserData,
+                            onSignInWithGoogle = { viewModel.signInWithGoogle(context) },
+                            onQuickSignIn = { viewModel.quickConnectAccount() },
+                            onSyncNow = { viewModel.syncWithFirestore() },
+                            onSignOut = { viewModel.signOutFromFirebase() }
                         )
                     }
                 }
 
-                // Mini Floating Player Bar (shown on main screens when audio is active)
+                // Mini / Persistent Floating Player Bar (shown on main screens when audio is active)
                 if (!isReadingMode && !isReciterSelectorOpen && (audioState.isPlaying || audioState.isBuffering || audioState.currentAyah != null)) {
-                    MiniAudioPlayerBar(
+                    PersistentAudioPlayerBar(
                         audioState = audioState,
                         onExpandPlayer = { viewModel.setPlayerBottomSheetOpen(true) },
                         onPlayPauseToggle = { viewModel.audioPlayer.togglePlayPause() },
+                        onSkipNext = { viewModel.audioPlayer.skipNext() },
+                        onSkipPrevious = { viewModel.audioPlayer.skipPrevious() },
                         onClosePlayer = { viewModel.audioPlayer.stopAudio() },
                         modifier = Modifier.align(Alignment.BottomCenter)
                     )
@@ -384,6 +408,10 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
             onOpenTajweedGuide = {
                 viewModel.setQuickSettingsOpen(false)
                 viewModel.setTajweedGuideOpen(true)
+            },
+            onOpenFontSettings = {
+                viewModel.setQuickSettingsOpen(false)
+                viewModel.setFontSettingsOpen(true)
             },
             onDismiss = { viewModel.setQuickSettingsOpen(false) }
         )
@@ -427,6 +455,10 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                 viewModel.setAyahOptionsOpen(false)
                 viewModel.audioPlayer.playSingleAyah(currentSurah.number, ayah, audioState.currentReciter)
                 viewModel.setPlayerBottomSheetOpen(true)
+            },
+            onOpenTimingSync = {
+                viewModel.setAyahOptionsOpen(false)
+                viewModel.setTimingGeneratorOpen(true)
             },
             onAddBookmark = {
                 viewModel.addPin(ayah)
@@ -535,11 +567,43 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                 viewModel.setPlayerBottomSheetOpen(false)
                 viewModel.setAudioEditorOpen(true)
             },
+            onOpenTimingGenerator = {
+                viewModel.setPlayerBottomSheetOpen(false)
+                viewModel.setTimingGeneratorOpen(true)
+            },
             onAddBookmark = { ayah ->
                 viewModel.addPin(ayah)
                 Toast.makeText(context, "Added Ayah ${ayah.ayahNumberInSurah} to Pins", Toast.LENGTH_SHORT).show()
             },
             onDismiss = { viewModel.setPlayerBottomSheetOpen(false) }
+        )
+    }
+
+    // Audio Timing File Generator Bottom Sheet (.lrc / .srt / .vtt)
+    if (isTimingGeneratorOpen) {
+        TimingFileGeneratorBottomSheet(
+            surahName = currentSurah.englishName,
+            surahNumber = currentSurah.number,
+            totalAyahsCount = currentSurah.totalAyahs,
+            ayahs = currentAyahs,
+            selectedFont = readingSettings.selectedFont,
+            initialReciter = audioState.currentReciter,
+            onDismiss = { viewModel.setTimingGeneratorOpen(false) }
+        )
+    }
+
+    // Arabic Fonts & Typography Studio Bottom Sheet
+    if (isFontSettingsOpen) {
+        ArabicFontSettingsBottomSheet(
+            settings = readingSettings,
+            onFontSelected = { font -> viewModel.setFontFamily(font) },
+            onFontSizeChanged = { size -> viewModel.setArabicFontSize(size) },
+            onLineHeightMultiplierChanged = { mult -> viewModel.setArabicLineHeightMultiplier(mult) },
+            onLetterSpacingChanged = { spacing -> viewModel.setArabicLetterSpacing(spacing) },
+            onFontWeightChanged = { weight -> viewModel.setArabicFontWeight(weight) },
+            onApplyPreset = { preset -> viewModel.applyTypographyPreset(preset) },
+            onResetDefaults = { viewModel.resetTypographySettings() },
+            onDismiss = { viewModel.setFontSettingsOpen(false) }
         )
     }
 

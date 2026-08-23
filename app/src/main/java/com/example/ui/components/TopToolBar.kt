@@ -19,8 +19,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.IslamicEmeraldDark
-import com.example.ui.theme.IslamicEmeraldPrimary
+import com.example.ui.theme.LocalExtendedTheme
 import com.example.ui.theme.QuranGold
 
 @Composable
@@ -28,16 +27,21 @@ fun TopToolBar(
     title: String = "Al Quran",
     isSearchActive: Boolean,
     searchQuery: String,
+    isNightMode: Boolean = false,
+    onToggleNightMode: () -> Unit = {},
+    onOpenThemeSelector: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit,
     onSearchToggle: () -> Unit,
     onTitleClick: () -> Unit,
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        color = IslamicEmeraldPrimary,
-        contentColor = Color.White,
-        modifier = modifier.fillMaxWidth()
+    val extendedTheme = LocalExtendedTheme.current
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(extendedTheme.primaryHeaderGradient)
     ) {
         Column(
             modifier = Modifier
@@ -48,7 +52,7 @@ fun TopToolBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -73,63 +77,73 @@ fun TopToolBar(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                     ) {
                         Text(
                             text = title,
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
-                                fontSize = 20.sp
+                                fontSize = 19.sp
                             )
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
                         Icon(
                             imageVector = Icons.Default.ArrowDropDown,
                             contentDescription = "Jump to Ayah",
                             tint = QuranGold,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
 
-                // Right Status & Search Buttons
+                // Right Action Buttons: Streak, Night Mode Toggle, Theme Palette, Search
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    // Prayer / Energy indicator "⚡ 5"
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                    // Global Theme Palette Button
+                    IconButton(
+                        onClick = onOpenThemeSelector,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(IslamicEmeraldDark.copy(alpha = 0.6f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .size(38.dp)
+                            .testTag("toolbar_theme_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Bolt,
-                            contentDescription = "Streak",
-                            tint = QuranGold,
-                            modifier = Modifier.size(16.dp)
+                            imageVector = Icons.Outlined.Palette,
+                            contentDescription = "Change Theme",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text(
-                            text = "5",
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
+                    }
+
+                    // Quick Night Mode Toggle Button (Moon / Sun)
+                    IconButton(
+                        onClick = onToggleNightMode,
+                        modifier = Modifier
+                            .size(38.dp)
+                            .testTag("toolbar_night_mode_button")
+                    ) {
+                        Icon(
+                            imageVector = if (isNightMode) Icons.Default.LightMode else Icons.Default.DarkMode,
+                            contentDescription = if (isNightMode) "Switch to Light Mode" else "Switch to Night Mode",
+                            tint = if (isNightMode) QuranGold else Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
 
                     // Search Icon with click animation
                     IconButton(
                         onClick = onSearchToggle,
-                        modifier = Modifier.testTag("toolbar_search_button")
+                        modifier = Modifier
+                            .size(38.dp)
+                            .testTag("toolbar_search_button")
                     ) {
                         Icon(
                             imageVector = if (isSearchActive) Icons.Default.Close else Icons.Default.Search,
                             contentDescription = "Search",
-                            tint = Color.White
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -142,21 +156,27 @@ fun TopToolBar(
                 exit = shrinkVertically() + fadeOut()
             ) {
                 Surface(
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.surface,
                     shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     TextField(
                         value = searchQuery,
                         onValueChange = onSearchQueryChange,
-                        placeholder = { Text("সূরা, আয়াত, পৃষ্ঠা বা অর্থ খুঁজুন...") },
+                        placeholder = {
+                            Text(
+                                "সূরা, আয়াত, পৃষ্ঠা বা অর্থ খুঁজুন...",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = null,
-                                tint = IslamicEmeraldPrimary
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         },
                         trailingIcon = {
@@ -165,14 +185,16 @@ fun TopToolBar(
                                     Icon(
                                         imageVector = Icons.Default.Clear,
                                         contentDescription = "Clear",
-                                        tint = Color.Gray
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
                         },
                         colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent
                         ),

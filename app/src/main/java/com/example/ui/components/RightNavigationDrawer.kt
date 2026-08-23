@@ -37,8 +37,13 @@ fun RightNavigationDrawerContent(
     onSocialClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val extendedTheme = LocalExtendedTheme.current
+
     val menuItems = listOf(
+        DrawerMenuItem("theme_night_mode", "Themes & Night Mode (থিম ও নাইট মোড)", Icons.Outlined.Palette),
         DrawerMenuItem("jump_to_ayah", "Jump to Ayah", Icons.Outlined.Navigation),
+        DrawerMenuItem("font_studio", "Arabic Fonts & Typography", Icons.Default.Edit),
+        DrawerMenuItem("timing_sync", "Audio Timing Sync (.lrc / .srt)", Icons.Outlined.Timer),
         DrawerMenuItem("notifications", "Notifications", Icons.Outlined.Notifications),
         DrawerMenuItem("salat_times", "Salat Times", Icons.Outlined.Schedule),
         DrawerMenuItem("dictionary", "Dictionary", Icons.Outlined.MenuBook),
@@ -69,11 +74,7 @@ fun RightNavigationDrawerContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        Brush.linearGradient(
-                            listOf(IslamicEmeraldDark, IslamicEmeraldPrimary)
-                        )
-                    )
+                    .background(extendedTheme.primaryHeaderGradient)
                     .padding(20.dp)
             ) {
                 Column(
@@ -98,7 +99,7 @@ fun RightNavigationDrawerContent(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = "Al Quran Editor",
+                        text = "Al Quran",
                         style = MaterialTheme.typography.titleLarge.copy(
                             color = Color.White,
                             fontWeight = FontWeight.Bold
@@ -108,14 +109,14 @@ fun RightNavigationDrawerContent(
                     Text(
                         text = "The Holy Quran & Audio Station",
                         style = MaterialTheme.typography.bodyMedium.copy(
-                            color = IslamicEmeraldContainer,
+                            color = Color.White.copy(alpha = 0.85f),
                             fontSize = 12.sp
                         )
                     )
                 }
             }
 
-            Divider(color = LightDivider, thickness = 1.dp)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), thickness = 1.dp)
 
             // 2. Scrollable Item Selection Layout
             Column(

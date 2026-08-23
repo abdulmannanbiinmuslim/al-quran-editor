@@ -7,8 +7,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,6 +33,8 @@ fun QuickSettingsModalSheet(
     settings: ReadingSettings,
     onSettingsChange: (ReadingSettings) -> Unit,
     onOpenTajweedGuide: () -> Unit,
+    onOpenFontSettings: () -> Unit = {},
+    onOpenThemeSelector: () -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -60,7 +62,7 @@ fun QuickSettingsModalSheet(
                     text = "Quick Settings (দ্রুত সেটিংস)",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        color = IslamicEmeraldPrimary
+                        color = MaterialTheme.colorScheme.primary
                     )
                 )
                 IconButton(onClick = onDismiss) {
@@ -69,6 +71,86 @@ fun QuickSettingsModalSheet(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            // 0. Theme & Night Mode Controls
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Palette,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "থিম ও নাইট মোড (${settings.appColorTheme.displayName})",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        TextButton(
+                            onClick = {
+                                onDismiss()
+                                onOpenThemeSelector()
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text("সবগুলো দেখুন", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // 4 Night Mode Quick Selector Pills
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        com.example.data.model.NightModeOption.values().forEach { option ->
+                            val isSelected = settings.nightModeOption == option
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    width = 1.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { onSettingsChange(settings.copy(nightModeOption = option)) }
+                            ) {
+                                Text(
+                                    text = when (option) {
+                                        com.example.data.model.NightModeOption.LIGHT -> "দিন"
+                                        com.example.data.model.NightModeOption.NIGHT -> "রাত"
+                                        com.example.data.model.NightModeOption.OLED_BLACK -> "OLED"
+                                        com.example.data.model.NightModeOption.SYSTEM -> "Auto"
+                                    },
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             // 1. View Mode (দেখুন)
             Text("দেখুন (View Mode)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -251,8 +333,29 @@ fun QuickSettingsModalSheet(
             Divider(modifier = Modifier.padding(vertical = 12.dp))
 
             // 5. Font Settings & Live Preview
-            Text("Font Settings (ফন্ট সাইজ ও ধরণ)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Font Settings (ফন্ট ও টাইপোগ্রাফি)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                TextButton(
+                    onClick = {
+                        onDismiss()
+                        onOpenFontSettings()
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = IslamicEmeraldPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Font Studio", fontSize = 12.sp, color = IslamicEmeraldPrimary, fontWeight = FontWeight.Bold)
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
 
             // Live Preview Card with Dynamic Typography
             Surface(

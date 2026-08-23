@@ -24,13 +24,16 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.DailyVersesMetric
 import com.example.data.model.LibraryItem
 import com.example.data.model.ReadingViewMode
 import com.example.data.model.ReciterItem
 import com.example.data.model.SurahItem
+import com.example.data.model.WeeklyReadingSummary
 import com.example.data.repository.QuranData
 import com.example.data.repository.RecitersData
 import com.example.ui.components.HomeReciterCarouselCard
+import com.example.ui.components.ReadingProgressChartCard
 import com.example.ui.components.ReciterAvatarBadge
 import com.example.ui.theme.*
 
@@ -43,6 +46,8 @@ fun HomeScreen(
     onReciterClick: (ReciterItem) -> Unit,
     lastReadList: List<LibraryItem>,
     searchQuery: String,
+    weeklyReadingSummary: WeeklyReadingSummary? = null,
+    onViewFullStats: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val quickLinks = listOf(
@@ -54,6 +59,23 @@ fun HomeScreen(
         "AR-RAHMAN" to 55,
         "AL-WAQI'AH" to 56,
         "AL-IKHLAS" to 112
+    )
+
+    val defaultWeeklySummary = weeklyReadingSummary ?: WeeklyReadingSummary(
+        metrics = listOf(
+            DailyVersesMetric(dayOfWeek = "Sun", dateLabel = "17 Aug", versesCount = 28, minutesSpent = 15, goalVerses = 30),
+            DailyVersesMetric(dayOfWeek = "Mon", dateLabel = "18 Aug", versesCount = 45, minutesSpent = 28, goalVerses = 30),
+            DailyVersesMetric(dayOfWeek = "Tue", dateLabel = "19 Aug", versesCount = 18, minutesSpent = 10, goalVerses = 30),
+            DailyVersesMetric(dayOfWeek = "Wed", dateLabel = "20 Aug", versesCount = 56, minutesSpent = 35, goalVerses = 30),
+            DailyVersesMetric(dayOfWeek = "Thu", dateLabel = "21 Aug", versesCount = 38, minutesSpent = 22, goalVerses = 30),
+            DailyVersesMetric(dayOfWeek = "Fri", dateLabel = "22 Aug", versesCount = 85, minutesSpent = 50, goalVerses = 30),
+            DailyVersesMetric(dayOfWeek = "Sat", dateLabel = "23 Aug", versesCount = 42, minutesSpent = 26, goalVerses = 30)
+        ),
+        streakDays = 6,
+        totalVersesThisWeek = 312,
+        averageVersesPerDay = 44,
+        totalMinutesThisWeek = 186,
+        goalVersesDaily = 30
     )
 
     Column(
@@ -75,7 +97,17 @@ fun HomeScreen(
                 )
             }
 
-            // 2. Featured Reciters (জনপ্রিয় ক্বারীগণ) with Avatar Badges
+            // 2. User Reading Progress Metrics Visualization (Canvas-based Verses Read per Day)
+            item {
+                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    ReadingProgressChartCard(
+                        weeklySummary = defaultWeeklySummary,
+                        onViewFullStats = onViewFullStats
+                    )
+                }
+            }
+
+            // 3. Featured Reciters (জনপ্রিয় ক্বারীগণ) with Avatar Badges
             item {
                 Column(modifier = Modifier.padding(top = 14.dp, bottom = 8.dp)) {
                     Row(

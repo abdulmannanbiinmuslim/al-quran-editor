@@ -134,6 +134,55 @@ enum class QuranFontFamily {
     INDOPAK_PDMS_SALEEM
 }
 
+enum class AppColorTheme(
+    val id: String,
+    val displayName: String,
+    val banglaName: String,
+    val description: String
+) {
+    EMERALD(
+        id = "emerald",
+        displayName = "Emerald Oasis",
+        banglaName = "সবুজ মরূদ্যান (Emerald)",
+        description = "ঐতিহ্যবাহী ইসলামিক সবুজ ও সোনালী আভা"
+    ),
+    SAPPHIRE(
+        id = "sapphire",
+        displayName = "Royal Sapphire",
+        banglaName = "রাজকীয় নীল (Sapphire)",
+        description = "গভীর আকাশী নীল ও রূপালী প্রশান্তি"
+    ),
+    AMBER_DESERT(
+        id = "amber",
+        displayName = "Desert Sunset",
+        banglaName = "মরুভূমির স্বর্ণাভ (Amber)",
+        description = "উষ্ণ টেরাকোটা ও সূর্যাস্তের সোনালী আবেশ"
+    ),
+    AMETHYST(
+        id = "amethyst",
+        displayName = "Velvet Amethyst",
+        banglaName = "মর্যাদাপূর্ণ পার্পল (Amethyst)",
+        description = "রাজকীয় বাইজেন্টাইন বেগুনি ও রোজ গোল্ড"
+    ),
+    SEPIA_MUSHAF(
+        id = "sepia",
+        displayName = "Antique Manuscript",
+        banglaName = "প্রাচীন পাণ্ডুলিপি (Sepia)",
+        description = "ঐতিহাসিক মুসহাফের ভিন্টেজ পার্চমেন্ট ও দারুচিনি"
+    )
+}
+
+enum class NightModeOption(
+    val id: String,
+    val title: String,
+    val banglaTitle: String
+) {
+    LIGHT("light", "Light Mode", "দিন মোড (Light)"),
+    NIGHT("night", "Night Mode", "নাইট মোড (Night)"),
+    OLED_BLACK("oled", "OLED Pure Black", "পিচ ব্ল্যাক (OLED Black)"),
+    SYSTEM("system", "System Default", "সিস্টেম অনুযায়ী (Auto)")
+}
+
 data class ReadingSettings(
     val viewMode: ReadingViewMode = ReadingViewMode.SURAH,
     val layoutMode: ReadingLayoutMode = ReadingLayoutMode.LYRICS_AYAH_BY_AYAH,
@@ -143,10 +192,34 @@ data class ReadingSettings(
     val showTafsir: Boolean = false,
     val showTajweed: Boolean = true,
     val arabicFontSizeSp: Float = 28f,
+    val arabicLineHeightMultiplier: Float = 1.7f,
+    val arabicLetterSpacingSp: Float = 0f,
+    val arabicFontWeight: String = "Bold", // "Normal", "Medium", "SemiBold", "Bold"
     val translationFontSizeSp: Float = 16f,
     val tafsirFontSizeSp: Float = 14f,
     val selectedFont: QuranFontFamily = QuranFontFamily.UTHMANIC_HAFS,
     val selectedTranslation: String = "Bangla - Islamic Foundation",
     val selectedTafsir: String = "Bangla - Tafsir Ibn Kathir",
-    val selectedMushafType: String = "Mushaf Unicode Text" // or "Classic Madani Mushaf"
+    val selectedMushafType: String = "Mushaf Unicode Text", // or "Classic Madani Mushaf"
+    val appColorTheme: AppColorTheme = AppColorTheme.EMERALD,
+    val nightModeOption: NightModeOption = NightModeOption.LIGHT,
+    val highContrastNightText: Boolean = true
+)
+
+data class DailyVersesMetric(
+    val dayOfWeek: String, // "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+    val dateLabel: String, // "Aug 17", "Aug 18", etc.
+    val versesCount: Int,
+    val minutesSpent: Int = 15,
+    val goalVerses: Int = 30,
+    val isCompleted: Boolean = versesCount >= goalVerses
+)
+
+data class WeeklyReadingSummary(
+    val metrics: List<DailyVersesMetric>,
+    val streakDays: Int = 6,
+    val totalVersesThisWeek: Int = 304,
+    val averageVersesPerDay: Int = 43,
+    val totalMinutesThisWeek: Int = 174,
+    val goalVersesDaily: Int = 30
 )

@@ -38,6 +38,7 @@ fun AyahOptionsBottomSheet(
     onAddToPlanner: () -> Unit,
     onTafsirNoteView: () -> Unit,
     onPlayAyah: () -> Unit,
+    onOpenTimingSync: () -> Unit = {},
     onAddBookmark: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -126,6 +127,15 @@ fun AyahOptionsBottomSheet(
                 icon = Icons.Outlined.MenuBook,
                 onClick = {
                     onTafsirNoteView()
+                }
+            )
+
+            OptionRow(
+                title = "Timing File Generator (.lrc / .srt)",
+                icon = Icons.Outlined.Timer,
+                onClick = {
+                    onDismiss()
+                    onOpenTimingSync()
                 }
             )
 

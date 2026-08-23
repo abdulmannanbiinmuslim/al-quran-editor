@@ -33,6 +33,7 @@ import com.example.data.model.ReadingLayoutMode
 import com.example.data.model.ReadingSettings
 import com.example.data.model.SurahItem
 import com.example.data.timing.TimingGenerator
+import com.example.ui.components.ExpandableAyahTafsirSection
 import com.example.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -50,6 +51,7 @@ fun QuranReadingScreen(
     onTitleClick: () -> Unit,
     onToggleLayoutMode: () -> Unit,
     onOpenQuickSettings: () -> Unit,
+    onOpenFontSettings: () -> Unit = {},
     onOpenContents: () -> Unit,
     onToggleAutoScroll: () -> Unit,
     onAutoScrollSpeedChange: (Int) -> Unit,
@@ -59,10 +61,12 @@ fun QuranReadingScreen(
     onAyahOptionsClick: (AyahItem) -> Unit,
     onPlaySingleAyah: (AyahItem) -> Unit,
     onAddBookmark: (AyahItem) -> Unit,
+    onAddNoteClick: (AyahItem) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    var expandedAyahNumbers by remember { mutableStateOf(setOf<Int>()) }
 
     // Smooth auto scroll effect
     LaunchedEffect(isAutoScrollActive, autoScrollSpeed) {
@@ -128,7 +132,7 @@ fun QuranReadingScreen(
                             }
                         }
 
-                        // Right action buttons: Layout Mode Switch & Quick Settings
+                        // Right action buttons: Layout Mode Switch, Font Typography Studio & Quick Settings
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             // Layout mode toggle (Lyrics vs Mushaf Page)
                             IconButton(
@@ -145,13 +149,25 @@ fun QuranReadingScreen(
                                 )
                             }
 
+                            // Font & Typography Studio Button
+                            IconButton(
+                                onClick = onOpenFontSettings,
+                                modifier = Modifier.testTag("reading_font_settings_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Arabic Fonts & Typography",
+                                    tint = Color.White
+                                )
+                            }
+
                             // Quick Settings Drawer Button
                             IconButton(
                                 onClick = onOpenQuickSettings,
                                 modifier = Modifier.testTag("reading_quick_settings_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Tune,
+                                    imageVector = Icons.Default.Settings,
                                     contentDescription = "Quick Settings",
                                     tint = Color.White
                                 )
@@ -264,14 +280,24 @@ fun QuranReadingScreen(
                     val isCurrentlyPlaying = audioState.isPlaying &&
                             audioState.currentSurahNumber == surah.number &&
                             audioState.currentAyahNumber == ayah.ayahNumberInSurah
+                    val isTafsirExpanded = expandedAyahNumbers.contains(ayah.ayahNumberInSurah)
 
                     AyahCardItem(
                         ayah = ayah,
                         settings = settings,
                         isPlaying = isCurrentlyPlaying,
+                        isTafsirExpanded = isTafsirExpanded,
+                        onToggleTafsir = {
+                            expandedAyahNumbers = if (expandedAyahNumbers.contains(ayah.ayahNumberInSurah)) {
+                                expandedAyahNumbers - ayah.ayahNumberInSurah
+                            } else {
+                                expandedAyahNumbers + ayah.ayahNumberInSurah
+                            }
+                        },
                         onOptionsClick = { onAyahOptionsClick(ayah) },
                         onPlayClick = { onPlaySingleAyah(ayah) },
-                        onBookmarkClick = { onAddBookmark(ayah) }
+                        onBookmarkClick = { onAddBookmark(ayah) },
+                        onAddNoteClick = { onAddNoteClick(ayah) }
                     )
                 }
             } else {
@@ -375,9 +401,12 @@ private fun AyahCardItem(
     ayah: AyahItem,
     settings: ReadingSettings,
     isPlaying: Boolean,
+    isTafsirExpanded: Boolean,
+    onToggleTafsir: () -> Unit,
     onOptionsClick: () -> Unit,
     onPlayClick: () -> Unit,
-    onBookmarkClick: () -> Unit
+    onBookmarkClick: () -> Unit,
+    onAddNoteClick: () -> Unit
 ) {
     val bgModifier = if (isPlaying) {
         Modifier.background(IslamicEmeraldContainer.copy(alpha = 0.45f))
@@ -462,18 +491,23 @@ private fun AyahCardItem(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Dynamic Arabic Text with Selected Typography
+        // Dynamic Arabic Text with Selected Typography - tapping triggers Tafsir toggle
         if (settings.showArabic) {
             val arabicText = if (settings.selectedFont.name.startsWith("INDOPAK")) ayah.textIndopak else ayah.textUthmani
             Text(
                 text = "$arabicText ۝${TimingGenerator.toArabicNumber(ayah.ayahNumberInSurah)}",
                 style = com.example.ui.theme.QuranTypography.getArabicTextStyle(
                     font = settings.selectedFont,
-                    fontSizeSp = settings.arabicFontSizeSp
+                    fontSizeSp = settings.arabicFontSizeSp,
+                    fontWeight = com.example.ui.theme.QuranTypography.parseFontWeight(settings.arabicFontWeight),
+                    letterSpacingSp = settings.arabicLetterSpacingSp,
+                    lineHeightMultiplier = settings.arabicLineHeightMultiplier
                 ),
                 color = if (isPlaying) IslamicEmeraldDark else MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Right,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleTafsir() }
             )
         }
 
@@ -527,45 +561,19 @@ private fun AyahCardItem(
                 fontSize = settings.translationFontSizeSp.sp,
                 lineHeight = (settings.translationFontSizeSp * 1.45f).sp,
                 fontWeight = FontWeight.Normal,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.clickable { onToggleTafsir() }
             )
         }
 
-        // Tafsir Text
-        if (settings.showTafsir && ayah.banglaTafsir.isNotBlank()) {
-            Spacer(modifier = Modifier.height(10.dp))
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                shape = RoundedCornerShape(10.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.MenuBook,
-                            contentDescription = null,
-                            tint = IslamicEmeraldPrimary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "তাফসীর (${settings.selectedTafsir})",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            color = IslamicEmeraldPrimary
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = ayah.banglaTafsir,
-                        fontSize = settings.tafsirFontSizeSp.sp,
-                        lineHeight = (settings.tafsirFontSizeSp * 1.45f).sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
+        // Expandable Tafsir Section
+        Spacer(modifier = Modifier.height(12.dp))
+        ExpandableAyahTafsirSection(
+            ayah = ayah,
+            isExpanded = isTafsirExpanded || settings.showTafsir,
+            onToggleExpand = onToggleTafsir,
+            onAddNoteClick = onAddNoteClick
+        )
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 }
@@ -647,7 +655,10 @@ private fun MushafPageView(
                         text = "$arabicText ۝${TimingGenerator.toArabicNumber(ayah.ayahNumberInSurah)}",
                         style = com.example.ui.theme.QuranTypography.getArabicTextStyle(
                             font = settings.selectedFont,
-                            fontSizeSp = settings.arabicFontSizeSp
+                            fontSizeSp = settings.arabicFontSizeSp,
+                            fontWeight = com.example.ui.theme.QuranTypography.parseFontWeight(settings.arabicFontWeight),
+                            letterSpacingSp = settings.arabicLetterSpacingSp,
+                            lineHeightMultiplier = settings.arabicLineHeightMultiplier
                         ),
                         color = if (isActive) IslamicEmeraldDark else MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Justify,

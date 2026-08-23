@@ -28,6 +28,7 @@ import com.example.data.model.AyahItem
 import com.example.data.model.QuranFontFamily
 import com.example.data.model.ReciterItem
 import com.example.data.repository.QuranData
+import com.example.data.timing.TimingGenerator
 import com.example.ui.theme.*
 
 /**
@@ -228,8 +229,9 @@ fun ReciterAudioPlayerBottomSheet(
                         .padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    val arabicText = if (selectedFont.name.startsWith("INDOPAK")) currentAyah.textIndopak else currentAyah.textUthmani
                     Text(
-                        text = currentAyah.textUthmani,
+                        text = "$arabicText ۝${TimingGenerator.toArabicNumber(currentAyah.ayahNumberInSurah)}",
                         style = QuranTypography.getArabicTextStyle(
                             font = selectedFont,
                             fontSizeSp = 21f

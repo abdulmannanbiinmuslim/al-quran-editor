@@ -1,30 +1,43 @@
 package com.example.ui.theme
 
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.model.QuranFontFamily
 
 /**
  * Dynamic Typography helper for Quranic Arabic text rendering
  * Supports multiple distinct styles (Uthmani Hafs, Amiri, Scheherazade, IndoPak Nastaleeq, etc.)
+ * Loaded directly from high-quality TTF fonts in assets / res/font
  */
 object QuranTypography {
 
+    private val UthmanicHafsFontFamily = FontFamily(Font(R.font.uthmanic_hafs))
+    private val AmiriFontFamily = FontFamily(Font(R.font.amiri_quran))
+    private val ScheherazadeFontFamily = FontFamily(Font(R.font.scheherazade_new))
+    private val DigitalkhatFontFamily = FontFamily(Font(R.font.digitalkhat))
+    private val MeQuranFontFamily = FontFamily(Font(R.font.me_quran))
+    private val IndoPakNastaleeqFontFamily = FontFamily(Font(R.font.indopak_nastaleeq))
+    private val NoorehudaFontFamily = FontFamily(Font(R.font.noorehuda))
+    private val NoorehidayatFontFamily = FontFamily(Font(R.font.noorehidayat))
+    private val PdmsSaleemFontFamily = FontFamily(Font(R.font.pdms_saleem))
+
     fun getFontFamily(font: QuranFontFamily): FontFamily {
         return when (font) {
-            QuranFontFamily.UTHMANIC_HAFS -> FontFamily.Serif
-            QuranFontFamily.UTHMANIC_AMIRI -> FontFamily.Serif
-            QuranFontFamily.UTHMANIC_SCHEHERAZADE -> FontFamily.Serif
-            QuranFontFamily.UTHMANIC_DIGITALKHAT -> FontFamily.Default
-            QuranFontFamily.ME_QURAN -> FontFamily.Cursive
-            QuranFontFamily.INDOPAK_NASTALEEQ -> FontFamily.Cursive
-            QuranFontFamily.INDOPAK_NOOREHUDA -> FontFamily.Serif
-            QuranFontFamily.INDOPAK_NOOREHIDAYAT -> FontFamily.SansSerif
-            QuranFontFamily.INDOPAK_PDMS_SALEEM -> FontFamily.Serif
+            QuranFontFamily.UTHMANIC_HAFS -> UthmanicHafsFontFamily
+            QuranFontFamily.UTHMANIC_AMIRI -> AmiriFontFamily
+            QuranFontFamily.UTHMANIC_SCHEHERAZADE -> ScheherazadeFontFamily
+            QuranFontFamily.UTHMANIC_DIGITALKHAT -> DigitalkhatFontFamily
+            QuranFontFamily.ME_QURAN -> MeQuranFontFamily
+            QuranFontFamily.INDOPAK_NASTALEEQ -> IndoPakNastaleeqFontFamily
+            QuranFontFamily.INDOPAK_NOOREHUDA -> NoorehudaFontFamily
+            QuranFontFamily.INDOPAK_NOOREHIDAYAT -> NoorehidayatFontFamily
+            QuranFontFamily.INDOPAK_PDMS_SALEEM -> PdmsSaleemFontFamily
         }
     }
 

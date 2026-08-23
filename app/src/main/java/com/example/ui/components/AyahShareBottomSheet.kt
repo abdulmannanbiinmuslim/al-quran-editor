@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.CropSquare
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -22,6 +23,7 @@ fun AyahShareBottomSheet(
     onShareImage: () -> Unit,
     onShareText: () -> Unit,
     onShareMultipleAyahs: () -> Unit,
+    onShareAudioDownloadLink: () -> Unit = onShareMultipleAyahs,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -107,7 +109,27 @@ fun AyahShareBottomSheet(
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(16.dp))
-                Text("Multiple Ayahs", fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                Text("Multiple Ayahs & Download Links", fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        onShareAudioDownloadLink()
+                    }
+                    .padding(vertical = 12.dp)
+                    .testTag("share_audio_link_option")
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Download,
+                    contentDescription = null,
+                    tint = IslamicEmeraldPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Text("Audio Download Link (MP3)", fontSize = 15.sp, fontWeight = FontWeight.Medium)
             }
 
             Spacer(modifier = Modifier.height(12.dp))

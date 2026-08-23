@@ -254,7 +254,34 @@ fun AudioSystemEditorBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Download & Copy Audio Links for selected range
+            val context = androidx.compose.ui.platform.LocalContext.current
+            OutlinedButton(
+                onClick = {
+                    val s = surahNumber.toString().padStart(3, '0')
+                    val sb = StringBuilder()
+                    sb.append("Surah $surahName (Qari: ${currentReciter.displayName})\n")
+                    for (a in startAyah..endAyah) {
+                        val aStr = a.toString().padStart(3, '0')
+                        val url = "https://everyayah.com/data/${currentReciter.serverFolder}/$s$aStr.mp3"
+                        sb.append("Ayah $a: $url\n")
+                    }
+                    val text = sb.toString().trimEnd()
+                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("Range Audio Download Links", text)
+                    clipboard.setPrimaryClip(clip)
+                    android.widget.Toast.makeText(context, "অডিও ডাউনলোড লিঙ্ক কপি করা হয়েছে!", android.widget.Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Outlined.Download, contentDescription = null, tint = IslamicEmeraldPrimary, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Copy Audio Download Links ($startAyah - $endAyah)")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Bottom Buttons: Cancel & Play
             Row(

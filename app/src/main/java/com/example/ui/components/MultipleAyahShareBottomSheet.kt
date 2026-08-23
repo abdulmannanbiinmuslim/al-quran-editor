@@ -39,6 +39,7 @@ import com.example.ui.theme.QuranGold
 @Composable
 fun MultipleAyahShareBottomSheet(
     surahName: String,
+    surahNumber: Int = 1,
     totalAyahsCount: Int,
     ayahs: List<AyahItem>,
     selectedFont: QuranFontFamily,
@@ -53,11 +54,16 @@ fun MultipleAyahShareBottomSheet(
     var isEnglishChecked by remember { mutableStateOf(false) }
     var isBanglaChecked by remember { mutableStateOf(false) }
     var isTafsirChecked by remember { mutableStateOf(false) }
+    var isDownloadLinksChecked by remember { mutableStateOf(false) }
+    var isOnlyDownloadLinksChecked by remember { mutableStateOf(false) }
+
+    var selectedReciterIndex by remember { mutableStateOf(2) } // default Abdul Basit
+    var showReciterDropdown by remember { mutableStateOf(false) }
 
     var startAyah by remember { mutableStateOf(1f) }
     var endAyah by remember { mutableStateOf(totalAyahsCount.coerceAtLeast(1).coerceAtMost(7).toFloat()) }
 
-    val reciter: ReciterItem = RecitersData.recitersList[2] // Abdul Basit Mujawwad sample default
+    val reciter: ReciterItem = RecitersData.recitersList.getOrElse(selectedReciterIndex) { RecitersData.recitersList[2] }
 
     // Filter ayahs within selected slider range
     val selectedAyahs = ayahs.filter {
@@ -68,9 +74,30 @@ fun MultipleAyahShareBottomSheet(
     val generatedText = remember(
         isArabicChecked, isShareWithLyricsChecked, isShareWithSrtChecked,
         isEnglishChecked, isBanglaChecked, isTafsirChecked,
-        startAyah, endAyah, selectedFont
+        isDownloadLinksChecked, isOnlyDownloadLinksChecked,
+        startAyah, endAyah, selectedFont, selectedReciterIndex
     ) {
         when {
+            isOnlyDownloadLinksChecked -> {
+                if (selectedAyahs.size == 1) {
+                    val single = selectedAyahs.first()
+                    TimingGenerator.generateSingleAyahDownloadLink(reciter, surahNumber, single.ayahNumberInSurah)
+                } else {
+                    TimingGenerator.generateMultipleAyahDownloadLinks(reciter, surahNumber, selectedAyahs)
+                }
+            }
+            isDownloadLinksChecked -> {
+                val lang = if (isEnglishChecked) "English" else "Bangla"
+                TimingGenerator.generateAyahsWithDownloadLinksText(
+                    surahName = surahName,
+                    reciter = reciter,
+                    surahNumber = surahNumber,
+                    ayahs = selectedAyahs,
+                    font = selectedFont,
+                    includeTranslation = isBanglaChecked || isEnglishChecked,
+                    language = lang
+                )
+            }
             isShareWithLyricsChecked && isBanglaChecked -> {
                 TimingGenerator.generateArabicWithTranslationLrc(surahName, reciter, selectedAyahs, selectedFont, "Bangla")
             }
@@ -120,7 +147,7 @@ fun MultipleAyahShareBottomSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Multiple Ayahs",
+                    text = "Multiple Ayahs & Download Links",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = IslamicEmeraldPrimary
@@ -131,13 +158,70 @@ fun MultipleAyahShareBottomSheet(
                 }
             }
 
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Reciter Selection Box
+            Card(
+                onClick = { showReciterDropdown = true },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Reciter: ${reciter.displayName}",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        color = IslamicEmeraldPrimary
+                    )
+                    Text("Change ▾", fontSize = 12.sp, color = Color.Gray)
+                }
+                DropdownMenu(
+                    expanded = showReciterDropdown,
+                    onDismissRequest = { showReciterDropdown = false }
+                ) {
+                    RecitersData.recitersList.take(15).forEachIndexed { idx, r ->
+                        DropdownMenuItem(
+                            text = { Text(r.displayName) },
+                            onClick = {
+                                selectedReciterIndex = idx
+                                showReciterDropdown = false
+                            }
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Checkbox List (Exact Match to Pages 28, 30, 31, 32, 33)
+            // Checkbox List
             ShareCheckbox(
                 label = "Arabic",
                 checked = isArabicChecked,
                 onCheckedChange = { isArabicChecked = it }
+            )
+
+            ShareCheckbox(
+                label = "Include Audio Download Links (Direct MP3 URLs)",
+                checked = isDownloadLinksChecked,
+                onCheckedChange = {
+                    isDownloadLinksChecked = it
+                    if (it) isOnlyDownloadLinksChecked = false
+                }
+            )
+
+            ShareCheckbox(
+                label = "Only Direct Audio Download Links (Single/Multiple)",
+                checked = isOnlyDownloadLinksChecked,
+                onCheckedChange = {
+                    isOnlyDownloadLinksChecked = it
+                    if (it) isDownloadLinksChecked = false
+                }
             )
 
             ShareCheckbox(
@@ -182,7 +266,7 @@ fun MultipleAyahShareBottomSheet(
                 onCheckedChange = { isTafsirChecked = it }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Ayah Range Slider
             Row(
@@ -220,10 +304,17 @@ fun MultipleAyahShareBottomSheet(
                 modifier = Modifier.testTag("ayah_range_slider")
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Live Preview of Formatted Output
-            Text("Preview:", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.Gray)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Preview & Download Links:", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = IslamicEmeraldPrimary)
+                Text("${selectedAyahs.size} Ayahs selected", fontSize = 11.sp, color = Color.Gray)
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
@@ -251,9 +342,9 @@ fun MultipleAyahShareBottomSheet(
                 OutlinedButton(
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        val clip = ClipData.newPlainText("Quran Text", generatedText)
+                        val clip = ClipData.newPlainText("Quran Audio Download Links", generatedText)
                         clipboard.setPrimaryClip(clip)
-                        Toast.makeText(context, "Copied to clipboard!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "ডাউনলোড লিংক কপি করা হয়েছে!", Toast.LENGTH_SHORT).show()
                     },
                     modifier = Modifier
                         .weight(1f)
@@ -261,17 +352,17 @@ fun MultipleAyahShareBottomSheet(
                 ) {
                     Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Copy")
+                    Text("Copy Links")
                 }
 
                 Button(
                     onClick = {
                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
-                            putExtra(Intent.EXTRA_SUBJECT, "Surah $surahName")
+                            putExtra(Intent.EXTRA_SUBJECT, "Surah $surahName Audio Download Links")
                             putExtra(Intent.EXTRA_TEXT, generatedText)
                         }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share Ayahs via"))
+                        context.startActivity(Intent.createChooser(shareIntent, "Share Download Links via"))
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
                     modifier = Modifier
@@ -280,7 +371,7 @@ fun MultipleAyahShareBottomSheet(
                 ) {
                     Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Share")
+                    Text("Share Links")
                 }
             }
 

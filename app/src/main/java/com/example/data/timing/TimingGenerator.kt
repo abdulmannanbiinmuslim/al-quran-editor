@@ -165,4 +165,51 @@ object TimingGenerator {
         }
         return sb.toString().trimEnd()
     }
+
+    // 7. Single Ayah Audio Download Link
+    fun generateSingleAyahDownloadLink(reciter: ReciterItem, surahNumber: Int, ayahNumber: Int): String {
+        val s = surahNumber.toString().padStart(3, '0')
+        val a = ayahNumber.toString().padStart(3, '0')
+        return "https://everyayah.com/data/${reciter.serverFolder}/$s$a.mp3"
+    }
+
+    // 8. Multiple Ayahs Audio Download Links List
+    fun generateMultipleAyahDownloadLinks(reciter: ReciterItem, surahNumber: Int, ayahs: List<AyahItem>): String {
+        val sb = StringBuilder()
+        sb.append("# Quran Audio Download Links (Qari: ${reciter.displayName})\n")
+        val s = surahNumber.toString().padStart(3, '0')
+        ayahs.forEach { ayah ->
+            val a = ayah.ayahNumberInSurah.toString().padStart(3, '0')
+            val url = "https://everyayah.com/data/${reciter.serverFolder}/$s$a.mp3"
+            sb.append("Ayah ${ayah.ayahNumberInSurah}: $url\n")
+        }
+        return sb.toString().trimEnd()
+    }
+
+    // 9. Full Arabic + Translation + Direct Audio Download Links
+    fun generateAyahsWithDownloadLinksText(
+        surahName: String,
+        reciter: ReciterItem,
+        surahNumber: Int,
+        ayahs: List<AyahItem>,
+        font: QuranFontFamily,
+        includeTranslation: Boolean = true,
+        language: String = "Bangla"
+    ): String {
+        val sb = StringBuilder()
+        sb.append("Surah $surahName (Qari: ${reciter.displayName})\n")
+        val s = surahNumber.toString().padStart(3, '0')
+        ayahs.forEach { ayah ->
+            val a = ayah.ayahNumberInSurah.toString().padStart(3, '0')
+            val url = "https://everyayah.com/data/${reciter.serverFolder}/$s$a.mp3"
+            val arabicText = if (font.name.startsWith("INDOPAK")) ayah.textIndopak else ayah.textUthmani
+            sb.append("$arabicText ۝${toArabicNumber(ayah.ayahNumberInSurah)}\n")
+            if (includeTranslation) {
+                val translation = if (language == "English") ayah.englishTranslation else ayah.banglaTranslation
+                sb.append("${ayah.ayahNumberInSurah}. $translation\n")
+            }
+            sb.append("🎵 Audio Link: $url\n\n")
+        }
+        return sb.toString().trimEnd()
+    }
 }

@@ -401,6 +401,8 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
         val ayah = selectedAyahForOptions!!
         AyahOptionsBottomSheet(
             ayah = ayah,
+            surahNumber = currentSurah.number,
+            currentReciter = audioState.currentReciter,
             onCopy = {
                 val clip = ClipData.newPlainText(
                     "Ayah ${ayah.surahNumber}:${ayah.ayahNumberInSurah}",
@@ -458,14 +460,27 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                 viewModel.setShareMenuOpen(false)
                 viewModel.setMultipleAyahShareOpen(true)
             },
+            onShareAudioDownloadLink = {
+                val s = currentSurah.number.toString().padStart(3, '0')
+                val a = ayah.ayahNumberInSurah.toString().padStart(3, '0')
+                val downloadUrl = "https://everyayah.com/data/${audioState.currentReciter.serverFolder}/$s$a.mp3"
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, "Ayah ${ayah.surahNumber}:${ayah.ayahNumberInSurah} Audio Download Link")
+                    putExtra(Intent.EXTRA_TEXT, "Surah ${currentSurah.englishName} Ayah ${ayah.ayahNumberInSurah} (${audioState.currentReciter.displayName})\nDirect MP3: $downloadUrl")
+                }
+                context.startActivity(Intent.createChooser(shareIntent, "Share Audio Download Link"))
+                viewModel.setShareMenuOpen(false)
+            },
             onDismiss = { viewModel.setShareMenuOpen(false) }
         )
     }
 
-    // Multiple Ayah Share Bottom Sheet (3rd Level - LRC / SRT / Translations)
+    // Multiple Ayah Share Bottom Sheet (3rd Level - LRC / SRT / Translations / Audio Download Links)
     if (isMultipleAyahShareOpen) {
         MultipleAyahShareBottomSheet(
             surahName = currentSurah.englishName,
+            surahNumber = currentSurah.number,
             totalAyahsCount = currentSurah.totalAyahs,
             ayahs = currentAyahs,
             selectedFont = readingSettings.selectedFont,

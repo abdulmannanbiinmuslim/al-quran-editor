@@ -1,13 +1,11 @@
 package com.example.ui.theme
 
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
-import com.example.R
 import com.example.data.model.QuranFontFamily
 
 enum class QuranFontCategory(val displayName: String, val banglaName: String) {
@@ -37,59 +35,15 @@ data class QuranFontDetail(
  */
 object QuranTypography {
 
-    private val UthmanicHafsFontFamily = try {
-        FontFamily(Font(R.font.uthmanic_hafs))
-    } catch (e: Throwable) {
-        FontFamily.Serif
-    }
-
-    private val AmiriFontFamily = try {
-        FontFamily(Font(R.font.amiri_quran))
-    } catch (e: Throwable) {
-        FontFamily.Serif
-    }
-
-    private val ScheherazadeFontFamily = try {
-        FontFamily(Font(R.font.scheherazade_new))
-    } catch (e: Throwable) {
-        FontFamily.Serif
-    }
-
-    private val DigitalkhatFontFamily = try {
-        FontFamily(Font(R.font.digitalkhat))
-    } catch (e: Throwable) {
-        FontFamily.Default
-    }
-
-    private val MeQuranFontFamily = try {
-        FontFamily(Font(R.font.me_quran))
-    } catch (e: Throwable) {
-        FontFamily.Cursive
-    }
-
-    private val IndoPakNastaleeqFontFamily = try {
-        FontFamily(Font(R.font.indopak_nastaleeq))
-    } catch (e: Throwable) {
-        FontFamily.Cursive
-    }
-
-    private val NoorehudaFontFamily = try {
-        FontFamily(Font(R.font.noorehuda))
-    } catch (e: Throwable) {
-        FontFamily.Serif
-    }
-
-    private val NoorehidayatFontFamily = try {
-        FontFamily(Font(R.font.noorehidayat))
-    } catch (e: Throwable) {
-        FontFamily.SansSerif
-    }
-
-    private val PdmsSaleemFontFamily = try {
-        FontFamily(Font(R.font.pdms_saleem))
-    } catch (e: Throwable) {
-        FontFamily.Serif
-    }
+    private val UthmanicHafsFontFamily = FontFamily.Serif
+    private val AmiriFontFamily = FontFamily.Serif
+    private val ScheherazadeFontFamily = FontFamily.Serif
+    private val DigitalkhatFontFamily = FontFamily.Default
+    private val MeQuranFontFamily = FontFamily.Cursive
+    private val IndoPakNastaleeqFontFamily = FontFamily.Cursive
+    private val NoorehudaFontFamily = FontFamily.Serif
+    private val NoorehidayatFontFamily = FontFamily.SansSerif
+    private val PdmsSaleemFontFamily = FontFamily.Serif
 
     val availableFonts: List<QuranFontDetail> = listOf(
         QuranFontDetail(
@@ -260,7 +214,7 @@ object QuranTypography {
             fontWeight = fontWeight,
             fontStyle = fontStyle,
             lineHeight = lineHeightSp.sp,
-            letterSpacing = letterSpacingSp.sp
+            letterSpacing = 0.sp // Always strictly 0 for Arabic script to preserve cursive connections
         )
     }
 

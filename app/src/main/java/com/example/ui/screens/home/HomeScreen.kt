@@ -1,19 +1,24 @@
 package com.example.ui.screens.home
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,6 +27,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.DailyVersesMetric
@@ -36,6 +42,9 @@ import com.example.ui.components.HomeReciterCarouselCard
 import com.example.ui.components.ReadingProgressChartCard
 import com.example.ui.components.ReciterAvatarBadge
 import com.example.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,27 +96,20 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 80.dp)
         ) {
-            // 1. Material 3 Islamic Hero Greeting Card (Assalamu Alaikum & Last Read)
+            // 1. Material 3 Islamic Auto-Sliding Hero Banner (Greetings, Daily Ayah, Ayatul Kursi, Quran Gems)
             item {
-                HomeHeroBannerCard(
+                AutoSlidingHeroBanner(
                     lastRead = lastReadList.firstOrNull(),
                     onResumeRead = { item ->
                         onSurahClick(item.surahNumber, item.ayahNumber)
+                    },
+                    onAyahClick = { surah, ayah ->
+                        onSurahClick(surah, ayah)
                     }
                 )
             }
 
-            // 2. User Reading Progress Metrics Visualization (Canvas-based Verses Read per Day)
-            item {
-                Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                    ReadingProgressChartCard(
-                        weeklySummary = defaultWeeklySummary,
-                        onViewFullStats = onViewFullStats
-                    )
-                }
-            }
-
-            // 3. Featured Reciters (জনপ্রিয় ক্বারীগণ) with Avatar Badges
+            // 2. Featured Reciters (জনপ্রিয় ক্বারীগণ) with Avatar Badges & Glowing Floating Shadow
             item {
                 Column(modifier = Modifier.padding(top = 14.dp, bottom = 8.dp)) {
                     Row(
@@ -126,7 +128,7 @@ fun HomeScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "জনপ্রিয় ক্বারীগণ (Featured Reciters)",
+                                text = "জনপ্রিয় ক্বারীগণ (${RecitersData.recitersList.size} Reciters)",
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface
@@ -142,7 +144,7 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        items(RecitersData.recitersList.take(14)) { reciter ->
+                        items(RecitersData.recitersList) { reciter ->
                             HomeReciterCarouselCard(
                                 reciter = reciter,
                                 onClick = { onReciterClick(reciter) },
@@ -321,145 +323,456 @@ fun HomeScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun HomeHeroBannerCard(
+private fun AutoSlidingHeroBanner(
     lastRead: LibraryItem?,
-    onResumeRead: (LibraryItem) -> Unit
+    onResumeRead: (LibraryItem) -> Unit,
+    onAyahClick: (surahNumber: Int, ayahNumber: Int) -> Unit
 ) {
+    val totalSlides = 6
+    val pagerState = rememberPagerState(pageCount = { totalSlides })
+    val coroutineScope = rememberCoroutineScope()
+    var isAutoPlayPaused by remember { mutableStateOf(false) }
+    val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
+
+    // Smooth Auto-sliding effect every 4.5 seconds when not interacting or paused
+    LaunchedEffect(pagerState.currentPage, isDragged, isAutoPlayPaused) {
+        if (!isDragged && !isAutoPlayPaused) {
+            delay(4500)
+            yield()
+            val nextPage = (pagerState.currentPage + 1) % totalSlides
+            pagerState.animateScrollToPage(
+                page = nextPage,
+                animationSpec = androidx.compose.animation.core.tween(
+                    durationMillis = 600,
+                    easing = androidx.compose.animation.core.FastOutSlowInEasing
+                )
+            )
+        }
+    }
+
+    // Dynamic color gradient per slide
+    val slideGradients = listOf(
+        listOf(IslamicEmeraldDark, IslamicEmeraldPrimary, Color(0xFF136846)), // 0: Emerald
+        listOf(Color(0xFF0F2B48), Color(0xFF184A78), Color(0xFF20639B)),      // 1: Sapphire
+        listOf(Color(0xFF2C1338), Color(0xFF4A1E5C), Color(0xFF6B2D82)),      // 2: Amethyst
+        listOf(Color(0xFF0A3C42), Color(0xFF135860), Color(0xFF1E7580)),      // 3: Teal
+        listOf(Color(0xFF4A1224), Color(0xFF6E1B36), Color(0xFF8C2446)),      // 4: Ruby Rose
+        listOf(Color(0xFF4A3005), Color(0xFF6E480C), Color(0xFF8F5F14))       // 5: Warm Amber
+    )
+
+    val currentGradient = slideGradients[pagerState.currentPage % slideGradients.size]
+
     Card(
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .shadow(6.dp, RoundedCornerShape(20.dp))
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(24.dp),
+                ambientColor = currentGradient[1].copy(alpha = 0.35f),
+                spotColor = currentGradient[1].copy(alpha = 0.45f)
+            )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    Brush.linearGradient(
-                        listOf(IslamicEmeraldDark, IslamicEmeraldPrimary, Color(0xFF1E6B4C))
-                    )
-                )
-                .padding(18.dp)
+                .background(Brush.linearGradient(currentGradient))
         ) {
-            Column {
+            Column(modifier = Modifier.padding(16.dp)) {
+                // Top Header Row: Badge & Navigation Controls
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "আসসালামু আলাইকুম",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "পবিত্র কুরআন পড়ুন, শুনুন ও অন্তরে ধারণ করুন",
-                            fontSize = 12.sp,
-                            color = QuranGoldLight
-                        )
+                    // Slide Counter Badge
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.White.copy(alpha = 0.15f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.25f))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoStories,
+                                contentDescription = null,
+                                tint = QuranGoldLight,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            val banglaDigits = listOf("১", "২", "৩", "৪", "৫", "৬")
+                            Text(
+                                text = "${banglaDigits[pagerState.currentPage]} / ৬",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
+                    // Mini Navigation Controls: Prev, Pause/Play, Next
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoStories,
-                            contentDescription = null,
-                            tint = QuranGold,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        // Prev button
+                        Box(
+                            modifier = Modifier
+                                .size(26.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.15f))
+                                .clickable {
+                                    val prev = (pagerState.currentPage - 1 + totalSlides) % totalSlides
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(prev)
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "পূর্ববর্তী",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+
+                        // Play/Pause button
+                        Box(
+                            modifier = Modifier
+                                .size(26.dp)
+                                .clip(CircleShape)
+                                .background(if (isAutoPlayPaused) QuranGold.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.15f))
+                                .clickable { isAutoPlayPaused = !isAutoPlayPaused },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isAutoPlayPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                contentDescription = if (isAutoPlayPaused) "প্লে" else "পজ",
+                                tint = if (isAutoPlayPaused) QuranGoldLight else Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+
+                        // Next button
+                        Box(
+                            modifier = Modifier
+                                .size(26.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.15f))
+                                .clickable {
+                                    val next = (pagerState.currentPage + 1) % totalSlides
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(next)
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "পরবর্তী",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Last read quick resume card
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.White.copy(alpha = 0.12f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            if (lastRead != null) onResumeRead(lastRead)
-                            else onResumeRead(
-                                LibraryItem(
-                                    id = "1",
-                                    surahNumber = 1,
-                                    ayahNumber = 1,
-                                    surahName = "Al-Fatihah",
-                                    arabicSnippet = "بِسْمِ ٱللَّهِ",
-                                    translationSnippet = "পরম করুণাময় আল্লাহর নামে"
-                                )
-                            )
-                        }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.BookmarkBorder,
-                                contentDescription = null,
-                                tint = QuranGold,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
+                // Pager Content
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxWidth()
+                ) { page ->
+                    when (page) {
+                        0 -> {
+                            // Slide 1: Assalamu Alaikum & Last Read Quick Card
                             Column {
                                 Text(
-                                    text = "সর্বশেষ পঠিত (Last Read)",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color.White.copy(alpha = 0.8f)
-                                )
-                                Text(
-                                    text = if (lastRead != null) "${lastRead.surahName} [${lastRead.surahNumber}:${lastRead.ayahNumber}]"
-                                    else "Al-Fatihah [1:1]",
-                                    fontSize = 14.sp,
+                                    text = "আসসালামু আলাইকুম",
+                                    fontSize = 17.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
                                 )
+                                Text(
+                                    text = "পবিত্র কুরআন পড়ুন, শুনুন ও অন্তরে ধারণ করুন",
+                                    fontSize = 12.sp,
+                                    color = QuranGoldLight
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = Color.White.copy(alpha = 0.14f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            if (lastRead != null) onResumeRead(lastRead)
+                                            else onResumeRead(
+                                                LibraryItem(
+                                                    id = "1",
+                                                    surahNumber = 1,
+                                                    ayahNumber = 1,
+                                                    surahName = "Al-Fatihah",
+                                                    arabicSnippet = "بِسْمِ ٱللَّهِ",
+                                                    translationSnippet = "পরম করুণাময় আল্লাহর নামে"
+                                                )
+                                            )
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(34.dp)
+                                                    .clip(CircleShape)
+                                                    .background(QuranGold.copy(alpha = 0.25f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.BookmarkBorder,
+                                                    contentDescription = null,
+                                                    tint = QuranGoldLight,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Column {
+                                                Text(
+                                                    text = "সর্বশেষ পঠিত আয়াত",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = Color.White.copy(alpha = 0.8f)
+                                                )
+                                                Text(
+                                                    text = if (lastRead != null) "${lastRead.surahName} [${lastRead.surahNumber}:${lastRead.ayahNumber}]"
+                                                    else "সূরা আল-ফাতিহা [১:১]",
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White
+                                                )
+                                            }
+                                        }
+
+                                        FilledTonalButton(
+                                            onClick = {
+                                                if (lastRead != null) onResumeRead(lastRead)
+                                                else onResumeRead(
+                                                    LibraryItem(
+                                                        id = "1",
+                                                        surahNumber = 1,
+                                                        ayahNumber = 1,
+                                                        surahName = "Al-Fatihah",
+                                                        arabicSnippet = "بِسْمِ ٱللَّهِ",
+                                                        translationSnippet = "পরম করুণাময় আল্লাহর নামে"
+                                                    )
+                                                )
+                                            },
+                                            colors = ButtonDefaults.filledTonalButtonColors(
+                                                containerColor = QuranGold,
+                                                contentColor = Color(0xFF2C2200)
+                                            ),
+                                            shape = RoundedCornerShape(10.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                            modifier = Modifier.height(34.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("পড়ুন", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
                             }
                         }
 
-                        FilledTonalButton(
-                            onClick = {
-                                if (lastRead != null) onResumeRead(lastRead)
-                                else onResumeRead(
-                                    LibraryItem(
-                                        id = "1",
-                                        surahNumber = 1,
-                                        ayahNumber = 1,
-                                        surahName = "Al-Fatihah",
-                                        arabicSnippet = "بِسْمِ ٱللَّهِ",
-                                        translationSnippet = "পরম করুণাময় আল্লাহর নামে"
-                                    )
-                                )
-                            },
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = QuranGold,
-                                contentColor = Color(0xFF2C2200)
-                            ),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(32.dp)
-                        ) {
-                            Text("পড়ুন", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        1 -> {
+                            // Slide 2: Daily Ayah - Ease with Hardship
+                            AyahHeroSlide(
+                                badge = "দৈনিক গুরুত্বপূর্ণ আয়াত",
+                                arabic = "إِنَّ مَعَ الْعُسْرِ يُسْرًا",
+                                bangla = "নিশ্চয় কষ্টের সাথেই রয়েছে স্বস্তি।",
+                                reference = "সূরা আল-ইনশিরাহ • আয়াত ৬",
+                                onAction = { onAyahClick(94, 6) }
+                            )
+                        }
+
+                        2 -> {
+                            // Slide 3: Ayatul Kursi
+                            AyahHeroSlide(
+                                badge = "সর্বশ্রেষ্ঠ আয়াত • আয়াতুল কুরসী",
+                                arabic = "ٱللَّهُ لَآ إِلَٰهَ إِلَّا هُوَ ٱلْحَىُّ ٱلْقَيُّومُ",
+                                bangla = "আল্লাহ! তিনি ছাড়া কোনো সত্য উপাস্য নেই, তিনি চিরঞ্জীব।",
+                                reference = "সূরা আল-বাক্বারা • আয়াত ২৫৫",
+                                onAction = { onAyahClick(2, 255) }
+                            )
+                        }
+
+                        3 -> {
+                            // Slide 4: Heart's Tranquility
+                            AyahHeroSlide(
+                                badge = "অন্তরের প্রশান্তি ও যিকির",
+                                arabic = "أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ",
+                                bangla = "জেনে রেখো, আল্লাহর স্মরণেই অন্তরসমূহ পরম প্রশান্তি লাভ করে।",
+                                reference = "সূরা আর-রাদ • আয়াত ২৮",
+                                onAction = { onAyahClick(13, 28) }
+                            )
+                        }
+
+                        4 -> {
+                            // Slide 5: Hope & Forgiveness
+                            AyahHeroSlide(
+                                badge = "ক্ষমা ও রহমতের আশ্বাস",
+                                arabic = "لَا تَقْنَطُوا مِن رَّحْمَةِ اللَّهِ",
+                                bangla = "তোমরা আল্লাহর অসীম রহমত থেকে কখনো নিরাশ হয়ো না।",
+                                reference = "সূরা আয-যুমার • আয়াত ৫৩",
+                                onAction = { onAyahClick(39, 53) }
+                            )
+                        }
+
+                        5 -> {
+                            // Slide 6: Dua for Goodness
+                            AyahHeroSlide(
+                                badge = "উভয় জাহানের কল্যাণের দোয়া",
+                                arabic = "رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الآخِرَةِ حَسَنَةً",
+                                bangla = "হে আমাদের প্রতিপালক! আমাদের ইহকালে ও পরকালে কল্যাণ দিন।",
+                                reference = "সূরা আল-বাক্বারা • আয়াত ২০১",
+                                onAction = { onAyahClick(2, 201) }
+                            )
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Modern Interactive Slide Indicators (Clickable animated pills)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    repeat(totalSlides) { idx ->
+                        val isSelected = pagerState.currentPage == idx
+                        val targetWidth = if (isSelected) 22.dp else 6.dp
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 3.dp)
+                                .height(5.dp)
+                                .width(targetWidth)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(if (isSelected) QuranGold else Color.White.copy(alpha = 0.35f))
+                                .clickable {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(idx)
+                                    }
+                                }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AyahHeroSlide(
+    badge: String,
+    arabic: String,
+    bangla: String,
+    reference: String,
+    onAction: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = QuranGold.copy(alpha = 0.25f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, QuranGoldLight.copy(alpha = 0.45f))
+            ) {
+                Text(
+                    text = badge,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = QuranGoldLight,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
+
+            Text(
+                text = reference,
+                fontSize = 11.sp,
+                color = Color.White.copy(alpha = 0.85f),
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = arabic,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = QuranGoldLight,
+            textAlign = TextAlign.End,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = bangla,
+                fontSize = 12.sp,
+                color = Color.White,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            )
+
+            FilledTonalButton(
+                onClick = onAction,
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = QuranGold,
+                    contentColor = Color(0xFF2C2200)
+                ),
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                modifier = Modifier.height(30.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AutoStories,
+                    contentDescription = null,
+                    modifier = Modifier.size(13.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("পড়ুন", fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
     }

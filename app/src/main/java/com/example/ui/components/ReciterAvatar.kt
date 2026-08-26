@@ -149,6 +149,7 @@ fun ReciterAvatarBadge(
 
 /**
  * Horizontal Carousel Card for Reciter shown on Home Screen
+ * Styled with soft glowing shadow and floating appearance.
  */
 @Composable
 fun HomeReciterCarouselCard(
@@ -157,39 +158,50 @@ fun HomeReciterCarouselCard(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
-        shadowElevation = 2.dp,
+        shadowElevation = 4.dp,
+        tonalElevation = 1.dp,
         border = androidx.compose.foundation.BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            color = IslamicEmeraldPrimary.copy(alpha = 0.15f)
         ),
         modifier = modifier
-            .width(84.dp)
+            .width(92.dp)
+            .shadow(
+                elevation = 6.dp,
+                shape = RoundedCornerShape(18.dp),
+                ambientColor = IslamicEmeraldPrimary.copy(alpha = 0.2f),
+                spotColor = IslamicEmeraldPrimary.copy(alpha = 0.35f)
+            )
             .clickable { onClick() }
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .padding(vertical = 10.dp, horizontal = 6.dp)
+                .padding(vertical = 12.dp, horizontal = 6.dp)
         ) {
+            // Reciter Avatar with Gold border and Play badge
             ReciterAvatarBadge(
                 reciter = reciter,
-                size = 52.dp,
-                showBorder = true
+                size = 56.dp,
+                showBorder = true,
+                showPlayingBadge = true
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = reciter.displayName.split(" ").take(2).joinToString(" "),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
+                maxLines = 2,
+                lineHeight = 13.sp,
                 textAlign = TextAlign.Center
             )
+
+            Spacer(modifier = Modifier.height(2.dp))
 
             Text(
                 text = reciter.style,

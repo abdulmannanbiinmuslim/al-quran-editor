@@ -145,9 +145,11 @@ val DarkTextSecondary = EmeraldTextSecondaryNight
 val DarkDivider = Color(0xFF2C3E36)
 
 // Tajweed Color Codes (Standard Authentic Tajweed Colors)
-val TajweedGhunna = Color(0xFFFF9800) // Orange
-val TajweedIkhfa = Color(0xFF2196F3) // Blue
-val TajweedIdgham = Color(0xFF9C27B0) // Purple
-val TajweedQalqalah = Color(0xFF4CAF50) // Green
-val TajweedIqlab = Color(0xFFE91E63) // Pink
-val TajweedMadd = Color(0xFFF44336) // Red
+val TajweedMadd = Color(0xFFD32F2F)      // Crimson Red (মাদ)
+val TajweedGhunna = Color(0xFFE65100)    // Deep Orange (ওয়াজিব গুন্নাহ)
+val TajweedIkhfa = Color(0xFF2E7D32)     // Forest Green (ইখফা)
+val TajweedIdgham = Color(0xFF7B1FA2)    // Royal Purple (ইদগাম)
+val TajweedQalqalah = Color(0xFF0288D1)  // Ocean Blue (কলকলাহ)
+val TajweedIqlab = Color(0xFFC2185B)     // Rose Pink (ইকলাব)
+val TajweedAllah = Color(0xFF1B5E20)     // Deep Islamic Emerald (আল্লাহর নাম)
+

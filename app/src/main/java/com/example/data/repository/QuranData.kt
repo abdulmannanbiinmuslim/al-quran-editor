@@ -471,6 +471,76 @@ object QuranData {
             defaultStartMs = 56000L,
             defaultEndMs = 70000L
         ),
+        AyahItem(
+            surahNumber = 2,
+            ayahNumberInSurah = 6,
+            ayahNumberInQuran = 13,
+            textUthmani = "إِنَّ ٱلَّذِينَ كَفَرُوا۟ سَوَآءٌ عَلَيْهِمْ ءَأَنذَرْتَهُمْ أَمْ لَمْ تُنذِرْهُمْ لَا يُؤْمِنُونَ",
+            textIndopak = "اِنَّ الَّذِیْنَ كَفَرُوْا سَوَآءٌ عَلَیْهِمْ ءَأَنْذَرْتَهُمْ اَمْ لَمْ تُنْذِرْهُمْ لَا یُؤْمِنُوْنَ",
+            englishTranslation = "Indeed, those who disbelieve - it is all the same for them whether you warn them or do not warn them - they will not believe.",
+            banglaTranslation = "নিশ্চয় যারা কুফরি করেছে, আপনি তাদেরকে সতর্ক করুন বা না করুন, তাদের পক্ষে উভয়ই সমান; তারা ঈমান আনবে না।",
+            banglaTafsir = "যাদের অন্তরে অহংকার ও সত্যের প্রতি অন্ধ বিদ্বেষ জমে গেছে, তারা কোনো সতর্কবাণী শুনেও উপদেশ গ্রহণ করে না।",
+            words = listOf(
+                WordItem(1, "إِنَّ", "Indeed", "নিশ্চয়"),
+                WordItem(2, "ٱلَّذِينَ", "those who", "যারা"),
+                WordItem(3, "كَفَرُوا۟", "disbelieved", "কুফরি করেছে"),
+                WordItem(4, "سَوَآءٌ", "all the same", "উভয়ই সমান"),
+                WordItem(5, "عَلَيْهِمْ", "upon them", "তাদের ওপর"),
+                WordItem(6, "لَا يُؤْمِنُونَ", "they will not believe", "তারা ঈমান আনবে না")
+            ),
+            pageNumber = 3,
+            juzNumber = 1,
+            hizbNumber = 1,
+            rukuNumber = 2,
+            defaultStartMs = 70000L,
+            defaultEndMs = 84000L
+        ),
+        AyahItem(
+            surahNumber = 2,
+            ayahNumberInSurah = 7,
+            ayahNumberInQuran = 14,
+            textUthmani = "خَتَمَ ٱللَّهُ عَلَىٰ قُلُوبِهِمْ وَعَلَىٰ سَمْعِهِمْ ۖ وَعَلَىٰٓ أَبْصَٰرِهِمْ غِشَٰوَةٌ ۖ وَلَهُمْ عَذَابٌ عَظِيمٌ",
+            textIndopak = "خَتَمَ اللهُ عَلٰى قُلُوْبِهِمْ وَعَلٰى سَمْعِهِمْ ؕ وَعَلٰۤى اَبْصَارِهِمْ غِشَاوَةٌ ۖ وَّلَهُمْ عَذَابٌ عَظِیْمٌ",
+            englishTranslation = "Allah has set a seal upon their hearts and upon their hearing, and over their vision is a veil. And for them is a great punishment.",
+            banglaTranslation = "আল্লাহ তাদের অন্তরে ও তাদের শ্রবণে মোহর মেরে দিয়েছেন এবং তাদের দৃষ্টির ওপর রয়েছে পর্দা; আর তাদের জন্য রয়েছে মহাশাস্তি।",
+            banglaTafsir = "পাপের পুনরাবৃত্তি ও সত্য অস্বীকারের কারণে মানুষের অন্তরের উপলব্ধি ও সত্য গ্রহণের ক্ষমতা চিরতরে নষ্ট হয়ে যায়।",
+            words = listOf(
+                WordItem(1, "خَتَمَ ٱللَّهُ", "Allah has sealed", "আল্লাহ মোহর মেরে দিয়েছেন"),
+                WordItem(2, "عَلَىٰ قُلُوبِهِمْ", "upon their hearts", "তাদের অন্তরে"),
+                WordItem(3, "وَعَلَىٰ سَمْعِهِمْ", "and upon their hearing", "ও তাদের শ্রবণে"),
+                WordItem(4, "غِشَٰوَةٌ", "a veil", "পর্দা"),
+                WordItem(5, "عَذَابٌ عَظِيمٌ", "a great punishment", "মহাশাস্তি")
+            ),
+            pageNumber = 3,
+            juzNumber = 1,
+            hizbNumber = 1,
+            rukuNumber = 2,
+            defaultStartMs = 84000L,
+            defaultEndMs = 99000L
+        ),
+        AyahItem(
+            surahNumber = 2,
+            ayahNumberInSurah = 8,
+            ayahNumberInQuran = 15,
+            textUthmani = "وَمِنَ ٱلنَّاسِ مَن يَقُولُ ءَامَنَّا بِٱللَّهِ وَبِٱلْيَوْمِ ٱلْـَٔاخِرِ وَمَا هُم بِمُؤْمِنِينَ",
+            textIndopak = "وَمِنَ النَّاسِ مَنْ یَّقُوْلُ اٰمَنَّا بِاللهِ وَبِالْیَوْمِ الْاٰخِرِ وَمَا هُمْ بِمُؤْمِنِیْنَ",
+            englishTranslation = "And of the people are some who say, \"We believe in Allah and the Last Day,\" but they are not believers.",
+            banglaTranslation = "আর মানুষের মধ্যে এমন কিছু লোক আছে যারা বলে, 'আমরা আল্লাহ ও শেষ দিবসে ঈমান এনেছি', অথচ তারা মুমিন নয়।",
+            banglaTafsir = "মুনাফিকদের চরিত্রের সূচনা। মুখে ঈমানের দাবি করলেও অন্তরে কুফর ও কপটতা লুকিয়ে রাখে।",
+            words = listOf(
+                WordItem(1, "وَمِنَ ٱلنَّاسِ", "And of the people", "আর মানুষের মধ্যে"),
+                WordItem(2, "مَن يَقُولُ", "who says", "যে বলে"),
+                WordItem(3, "ءَامَنَّا بِٱللَّهِ", "we believe in Allah", "আমরা ঈমান এনেছি আল্লাহর ওপর"),
+                WordItem(4, "وَبِٱلْيَوْمِ ٱلْـَٔاخِرِ", "and in Last Day", "ও শেষ দিবসে"),
+                WordItem(5, "وَمَا هُم بِمُؤْمِنِينَ", "and they are not believers", "অথচ তারা মুমিন নয়")
+            ),
+            pageNumber = 3,
+            juzNumber = 1,
+            hizbNumber = 1,
+            rukuNumber = 3,
+            defaultStartMs = 99000L,
+            defaultEndMs = 114000L
+        ),
         // Ayatul Kursi (2:255)
         AyahItem(
             surahNumber = 2,

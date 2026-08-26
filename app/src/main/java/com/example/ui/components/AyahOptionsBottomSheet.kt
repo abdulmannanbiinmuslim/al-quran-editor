@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -26,6 +27,7 @@ import com.example.data.model.ReciterItem
 import com.example.data.repository.RecitersData
 import com.example.data.timing.TimingGenerator
 import com.example.ui.theme.IslamicEmeraldPrimary
+import com.example.ui.theme.QuranGold
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +35,9 @@ fun AyahOptionsBottomSheet(
     ayah: AyahItem?,
     surahNumber: Int = 1,
     currentReciter: ReciterItem = RecitersData.recitersList[2],
+    isFavorite: Boolean = false,
+    isPinned: Boolean = false,
+    onToggleFavorite: () -> Unit = {},
     onCopy: () -> Unit,
     onShare: () -> Unit,
     onAddToPlanner: () -> Unit,
@@ -70,8 +75,29 @@ fun AyahOptionsBottomSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // 1. Favorites Toggle
             OptionRow(
-                title = "Copy",
+                title = if (isFavorite) "Remove from Favorites (পছন্দ তালিকা থেকে সরান)" else "Add to Favorites (পছন্দের তালিকায় যুক্ত করুন)",
+                icon = if (isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                iconTint = QuranGold,
+                onClick = {
+                    onToggleFavorite()
+                    onDismiss()
+                }
+            )
+
+            // 2. Bookmark / Pin Toggle
+            OptionRow(
+                title = if (isPinned) "Remove Pin (পিন সরান)" else "Add Pin / Bookmark (পিন বা বুকমার্ক যুক্ত করুন)",
+                icon = if (isPinned) Icons.Outlined.BookmarkRemove else Icons.Outlined.BookmarkBorder,
+                onClick = {
+                    onAddBookmark()
+                    onDismiss()
+                }
+            )
+
+            OptionRow(
+                title = "Copy Ayah Text & Translation",
                 icon = Icons.Outlined.ContentCopy,
                 onClick = {
                     onCopy()
@@ -80,10 +106,36 @@ fun AyahOptionsBottomSheet(
             )
 
             OptionRow(
-                title = "Share",
+                title = "Share Ayah",
                 icon = Icons.Outlined.Share,
                 onClick = {
                     onShare()
+                }
+            )
+
+            OptionRow(
+                title = "Play this Ayah (এই আয়াতটি শুনুন)",
+                icon = Icons.Outlined.PlayCircleOutline,
+                onClick = {
+                    onPlayAyah()
+                    onDismiss()
+                }
+            )
+
+            OptionRow(
+                title = "Tafsir / Note View",
+                icon = Icons.Outlined.MenuBook,
+                onClick = {
+                    onTafsirNoteView()
+                }
+            )
+
+            OptionRow(
+                title = "Add to Reading Planner",
+                icon = Icons.Outlined.EventNote,
+                onClick = {
+                    onAddToPlanner()
+                    onDismiss()
                 }
             )
 
@@ -114,46 +166,11 @@ fun AyahOptionsBottomSheet(
             )
 
             OptionRow(
-                title = "Planner",
-                icon = Icons.Outlined.EventNote,
-                onClick = {
-                    onAddToPlanner()
-                    onDismiss()
-                }
-            )
-
-            OptionRow(
-                title = "Tafsir / Note View",
-                icon = Icons.Outlined.MenuBook,
-                onClick = {
-                    onTafsirNoteView()
-                }
-            )
-
-            OptionRow(
                 title = "Timing File Generator (.lrc / .srt)",
                 icon = Icons.Outlined.Timer,
                 onClick = {
                     onDismiss()
                     onOpenTimingSync()
-                }
-            )
-
-            OptionRow(
-                title = "Play this Ayah",
-                icon = Icons.Outlined.PlayCircleOutline,
-                onClick = {
-                    onPlayAyah()
-                    onDismiss()
-                }
-            )
-
-            OptionRow(
-                title = "Add Bookmark",
-                icon = Icons.Outlined.BookmarkBorder,
-                onClick = {
-                    onAddBookmark()
-                    onDismiss()
                 }
             )
 
@@ -173,6 +190,7 @@ fun AyahOptionsBottomSheet(
 private fun OptionRow(
     title: String,
     icon: ImageVector,
+    iconTint: androidx.compose.ui.graphics.Color = IslamicEmeraldPrimary,
     onClick: () -> Unit
 ) {
     Row(
@@ -180,19 +198,19 @@ private fun OptionRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(vertical = 12.dp)
-            .testTag("option_${title.lowercase().replace(" ", "_")}")
+            .padding(vertical = 11.dp)
+            .testTag("option_${title.lowercase().take(20).replace(" ", "_")}")
     ) {
         Icon(
             imageVector = icon,
             contentDescription = title,
-            tint = IslamicEmeraldPrimary,
+            tint = iconTint,
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = title,
-            fontSize = 15.sp,
+            fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
         )

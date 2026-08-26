@@ -26,8 +26,9 @@ fun TajweedRulesDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
             modifier = modifier
                 .fillMaxWidth()
                 .padding(16.dp)
@@ -44,7 +45,7 @@ fun TajweedRulesDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Tajweed Rules (তাজবীদের নিয়ম)",
+                        text = "তাজবীদের নিয়ম ও কালার কোড",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = IslamicEmeraldPrimary
@@ -56,6 +57,16 @@ fun TajweedRulesDialog(
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
+
+                TajweedCard(
+                    title = "Madd (Prolongation)",
+                    banglaTitle = "মাদ (দীর্ঘস্বর ৪-৬ হরকত)",
+                    badgeColor = TajweedMadd,
+                    arabicExample = "الۤمۤ ۝ وَلَا ٱلضَّآلِّينَ",
+                    description = "মদ্দের হরফ বা চিহ্ন (~) থাকলে ৪ থেকে ৬ হরকত পরিমাণ টেনে দীর্ঘ করে পড়তে হয়।"
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 TajweedCard(
                     title = "Ghunna (Nasalisation)",
@@ -82,7 +93,7 @@ fun TajweedRulesDialog(
                     banglaTitle = "ইদগাম (মিলিয়ে পড়া)",
                     badgeColor = TajweedIdgham,
                     arabicExample = "مَن يَقُولُ ۝ مِّن وَّالٍ",
-                    description = "নুন সাকিন বা তানভীনের পর ইদগামের হরফ (ירמלون) আসলে পরবর্তী হরফের সাথে মিলিয়ে গুন্নাহ সহ/ছাড়া পড়তে হয়।"
+                    description = "নুন সাকিন বা তানভীনের পর ইদগামের হরফ (یرملون) আসলে পরবর্তী হরফের সাথে মিলিয়ে গুন্নাহ সহ/ছাড়া পড়তে হয়।"
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -105,6 +116,16 @@ fun TajweedRulesDialog(
                     description = "নুন সাকিন বা তানভীনের পর 'বা' (ب) হরফ আসলে নুনকে মীমে রূপান্তরিত করে গুন্নাহ সহ পড়তে হয়।"
                 )
 
+                Spacer(modifier = Modifier.height(10.dp))
+
+                TajweedCard(
+                    title = "Lafz Allah (Glorified Name)",
+                    banglaTitle = "আল্লাহ তাআলার পবিত্র নাম",
+                    badgeColor = TajweedAllah,
+                    arabicExample = "ٱللَّهُ لَآ إِلَٰهَ إِلَّا هُوَ",
+                    description = "আল্লাহ তাআলার মহান নামকে তাজবীদে বিশেষ মর্যাদায় চিহ্নিত ও পাঠ করা হয়।"
+                )
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
@@ -112,7 +133,7 @@ fun TajweedRulesDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("বুঝেছি (Close)")
+                    Text("আলহামদুলিল্লাহ, বুঝেছি")
                 }
             }
         }

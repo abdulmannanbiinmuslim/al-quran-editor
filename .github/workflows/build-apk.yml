@@ -59,8 +59,19 @@ jobs:
             exit 1
           fi
 
+      - name: Make Gradle executable
+        run: |
+          if [ -f ./gradlew ]; then
+            chmod +x ./gradlew
+          fi
+
       - name: Build debug APK
-        run: gradle :app:assembleDebug --stacktrace --no-daemon
+        run: |
+          if [ -f ./gradlew ]; then
+            ./gradlew :app:assembleDebug --stacktrace --no-daemon
+          else
+            gradle :app:assembleDebug --stacktrace --no-daemon
+          fi
 
       - name: Verify APK existence
         run: |

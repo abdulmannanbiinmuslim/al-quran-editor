@@ -8,6 +8,7 @@ import com.example.data.audio.AudioPlayerManager
 import com.example.data.auth.FirebaseAuthService
 import com.example.data.firestore.QuranFirestoreSyncService
 import com.example.data.model.*
+import com.example.data.reminder.DailyReminderManager
 import com.example.data.repository.QuranData
 import com.example.data.repository.RecitersData
 import com.example.data.repository.TopicsData
@@ -110,6 +111,18 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     val isDownloadManagerOpen = _isDownloadManagerOpen.asStateFlow()
     val selectedReciterForDownload = MutableStateFlow<ReciterItem?>(null)
 
+    // Session-based reading timer & summary
+    private var sessionStartTimeMs: Long = 0L
+    private val _sessionSummary = MutableStateFlow<ReadingSessionSummary?>(null)
+    val sessionSummary = _sessionSummary.asStateFlow()
+
+    private val _sessionSummaryToast = MutableStateFlow<String?>(null)
+    val sessionSummaryToast = _sessionSummaryToast.asStateFlow()
+
+    fun clearSessionSummaryToast() {
+        _sessionSummaryToast.value = null
+    }
+
     // Auto Scroll
     private val _isAutoScrollActive = MutableStateFlow(false)
     val isAutoScrollActive = _isAutoScrollActive.asStateFlow()
@@ -118,6 +131,22 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     val autoScrollSpeed = _autoScrollSpeed.asStateFlow()
 
     private var autoScrollJob: Job? = null
+
+    // Bookmark Folders & Collections
+    private val _bookmarkFolders = MutableStateFlow(
+        listOf(
+            BookmarkFolder(id = "folder_fav", name = "Favorites (পছন্দের আয়াতসমূহ)", iconName = "Star", colorHex = "#FFD700", itemCount = 3),
+            BookmarkFolder(id = "folder_daily", name = "Daily Reflections (দৈনিক অনুধ্যান)", iconName = "AutoStories", colorHex = "#2E8B57", itemCount = 1),
+            BookmarkFolder(id = "folder_duas", name = "Quranic Duas (কুরআনের দোয়া)", iconName = "VolunteerActivism", colorHex = "#4169E1", itemCount = 0),
+            BookmarkFolder(id = "folder_hifz", name = "Memorization (হিফজ তালিকা)", iconName = "Bookmark", colorHex = "#FF8C00", itemCount = 0)
+        )
+    )
+    val bookmarkFolders = _bookmarkFolders.asStateFlow()
+
+    // Celebration Dialog Preferences
+    private val prefs = application.getSharedPreferences("quran_prefs", Context.MODE_PRIVATE)
+    private val _dontShowCelebrationAgain = MutableStateFlow(prefs.getBoolean("dont_show_celebration", false))
+    val dontShowCelebrationAgain = _dontShowCelebrationAgain.asStateFlow()
 
     // Collections / Pins / Notes
     private val _lastReadList = MutableStateFlow(
@@ -136,6 +165,42 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
         )
     )
     val pinnedAyahs = _pinnedAyahs.asStateFlow()
+
+    // Favorites
+    private val _favoriteAyahs = MutableStateFlow(
+        listOf(
+            LibraryItem("fav1", 1, 1, "Al-Fatihah", "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ", "শুরু করছি আল্লাহর নামে...", type = LibraryType.FAVORITE),
+            LibraryItem("fav2", 2, 255, "Al-Baqarah", "ٱللَّهُ لَآ إِلَٰهَ إِلَّا هُوَ ٱلْحَىُّ ٱلْقَيُّومُ", "আয়াতুল কুরসী", type = LibraryType.FAVORITE),
+            LibraryItem("fav3", 36, 1, "Ya-Sin", "يس ۝ وَٱلْقُرْءَانِ ٱلْحَكِيمِ", "ইয়াসীন। শপথ প্রজ্ঞাময় কুরআনের...", type = LibraryType.FAVORITE)
+        )
+    )
+    val favoriteAyahs = _favoriteAyahs.asStateFlow()
+
+    // Completed Surahs tracking
+    private val _completedSurahs = MutableStateFlow(setOf(1, 112, 113, 114))
+    val completedSurahs = _completedSurahs.asStateFlow()
+
+    // Surah completed positive feedback event for UI indicator / celebration toast
+    private val _surahCompletedFeedback = MutableStateFlow<SurahItem?>(null)
+    val surahCompletedFeedback = _surahCompletedFeedback.asStateFlow()
+
+    // Daily Reminder Settings
+    private val _dailyReminderSettings = MutableStateFlow(
+        DailyReminderManager.loadSettings(application)
+    )
+    val dailyReminderSettings = _dailyReminderSettings.asStateFlow()
+
+    init {
+        DailyReminderManager.initNotificationChannel(application)
+        if (_dailyReminderSettings.value.isEnabled) {
+            DailyReminderManager.scheduleDailyReminder(
+                application,
+                _dailyReminderSettings.value.hour,
+                _dailyReminderSettings.value.minute,
+                _dailyReminderSettings.value.reminderText
+            )
+        }
+    }
 
     private val _userNotes = MutableStateFlow(
         listOf(
@@ -406,6 +471,7 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
         _currentSurah.value = surah
         _currentAyahs.value = QuranData.getAyahsForSurah(surahNumber)
         _isReadingMode.value = true
+        sessionStartTimeMs = System.currentTimeMillis()
 
         // Automatically add to Last Read
         val existing = _lastReadList.value.toMutableList()
@@ -427,9 +493,85 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun closeReadingMode() {
+        val durationMs = if (sessionStartTimeMs > 0L) (System.currentTimeMillis() - sessionStartTimeMs) else 0L
+        val durationSec = durationMs / 1000
+        val surah = _currentSurah.value
+
+        if (durationSec >= 3 && _readingSettings.value.showSessionSummary && !_dontShowCelebrationAgain.value) {
+            val formatted = if (durationSec < 60) {
+                "${durationSec} সেকেন্ড"
+            } else {
+                val mins = durationSec / 60
+                val secs = durationSec % 60
+                if (secs > 0) "${mins} মিনিট ${secs} সে." else "${mins} মিনিট"
+            }
+            _sessionSummary.value = ReadingSessionSummary(
+                surahNumber = surah.number,
+                surahName = surah.englishName,
+                surahArabicName = surah.arabicName,
+                durationSeconds = durationSec,
+                formattedDuration = formatted,
+                totalAyahs = surah.totalAyahs
+            )
+        } else if (durationSec >= 3) {
+            // Silently record minutes if popup is disabled
+            val additionalMinutes = (durationSec / 60).toInt().coerceAtLeast(1)
+            readTodayMinutes.value = (readTodayMinutes.value + additionalMinutes).coerceAtMost(300)
+        }
+
+        sessionStartTimeMs = 0L
         _isReadingMode.value = false
         audioPlayer.stopAudio()
         stopAutoScroll()
+    }
+
+    fun confirmSessionSummary() {
+        val summary = _sessionSummary.value
+        if (summary != null) {
+            val additionalMinutes = (summary.durationSeconds / 60).toInt().coerceAtLeast(1)
+            readTodayMinutes.value = (readTodayMinutes.value + additionalMinutes).coerceAtMost(300)
+
+            // Mark surah completion in tracking
+            val currentSet = _completedSurahs.value.toMutableSet()
+            if (!currentSet.contains(summary.surahNumber)) {
+                currentSet.add(summary.surahNumber)
+                _completedSurahs.value = currentSet
+            }
+
+            // Sync with Firestore
+            currentUser.value?.let { user ->
+                syncWithFirestore(user)
+            }
+
+            _sessionSummaryToast.value = "আলহামদুলিল্লাহ! আপনার ${summary.formattedDuration} তিলাওয়াত রেকর্ড সফলভাবে সংরক্ষিত হয়েছে।"
+        }
+        _sessionSummary.value = null
+    }
+
+    fun dismissSessionSummary() {
+        confirmSessionSummary()
+    }
+
+    fun remindSessionSummaryLater() {
+        val summary = _sessionSummary.value
+        if (summary != null) {
+            val additionalMinutes = (summary.durationSeconds / 60).toInt().coerceAtLeast(1)
+            readTodayMinutes.value = (readTodayMinutes.value + additionalMinutes).coerceAtMost(300)
+        }
+        _sessionSummaryToast.value = "ইনশাআল্লাহ, পরবর্তী সেশনে পুনরায় মনে করিয়ে দেওয়া হবে।"
+        _sessionSummary.value = null
+    }
+
+    fun neverShowSessionSummaryAgain() {
+        val summary = _sessionSummary.value
+        if (summary != null) {
+            val additionalMinutes = (summary.durationSeconds / 60).toInt().coerceAtLeast(1)
+            readTodayMinutes.value = (readTodayMinutes.value + additionalMinutes).coerceAtMost(300)
+        }
+        updateSettings { it.copy(showSessionSummary = false) }
+        setDontShowCelebrationAgain(true)
+        _sessionSummaryToast.value = "স্বয়ংক্রিয় তিলাওয়াত সারাংশ পপআপ বন্ধ করা হয়েছে (সেটিংস থেকে চালু করা যাবে)।"
+        _sessionSummary.value = null
     }
 
     fun updateSettings(transform: (ReadingSettings) -> ReadingSettings) {
@@ -481,6 +623,175 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
 
     fun removePin(item: LibraryItem) {
         _pinnedAyahs.value = _pinnedAyahs.value.filter { it.id != item.id }
+    }
+
+    // Bookmark Folders Management
+    fun createBookmarkFolder(name: String, colorHex: String = "#FFD700") {
+        if (name.isBlank()) return
+        val list = _bookmarkFolders.value.toMutableList()
+        val newFolder = BookmarkFolder(
+            id = "folder_${System.currentTimeMillis()}",
+            name = name.trim(),
+            colorHex = colorHex,
+            itemCount = 0
+        )
+        list.add(newFolder)
+        _bookmarkFolders.value = list
+    }
+
+    fun deleteBookmarkFolder(folderId: String) {
+        _bookmarkFolders.value = _bookmarkFolders.value.filter { it.id != folderId }
+        _pinnedAyahs.value = _pinnedAyahs.value.filter { it.folderId != folderId }
+    }
+
+    fun getFoldersForAyah(surahNumber: Int, ayahNumber: Int): List<String> {
+        val matchingPins = _pinnedAyahs.value.filter {
+            it.surahNumber == surahNumber && it.ayahNumber == ayahNumber && it.folderId != null
+        }.mapNotNull { it.folderId }
+
+        val isFav = isAyahFavorite(surahNumber, ayahNumber)
+        return if (isFav) matchingPins + "folder_fav" else matchingPins
+    }
+
+    fun saveAyahToFolders(ayah: AyahItem, selectedFolderIds: List<String>) {
+        val surah = QuranData.surahs.find { it.number == ayah.surahNumber }
+        val surahName = surah?.englishName ?: "Surah ${ayah.surahNumber}"
+
+        // Handle Favorites Folder
+        val favList = _favoriteAyahs.value.toMutableList()
+        if (selectedFolderIds.contains("folder_fav")) {
+            if (!favList.any { it.surahNumber == ayah.surahNumber && it.ayahNumber == ayah.ayahNumberInSurah }) {
+                favList.add(
+                    0,
+                    LibraryItem(
+                        id = "fav_${System.currentTimeMillis()}",
+                        surahNumber = ayah.surahNumber,
+                        ayahNumber = ayah.ayahNumberInSurah,
+                        surahName = surahName,
+                        arabicSnippet = ayah.textUthmani,
+                        translationSnippet = ayah.banglaTranslation,
+                        folderId = "folder_fav",
+                        folderName = "Favorites",
+                        type = LibraryType.FAVORITE
+                    )
+                )
+            }
+        } else {
+            favList.removeAll { it.surahNumber == ayah.surahNumber && it.ayahNumber == ayah.ayahNumberInSurah }
+        }
+        _favoriteAyahs.value = favList
+
+        // Handle Other Folders in _pinnedAyahs
+        val pins = _pinnedAyahs.value.toMutableList()
+        // Remove existing assignments for this ayah
+        pins.removeAll { it.surahNumber == ayah.surahNumber && it.ayahNumber == ayah.ayahNumberInSurah && it.folderId != null }
+
+        selectedFolderIds.filter { it != "folder_fav" }.forEach { folderId ->
+            val folder = _bookmarkFolders.value.find { it.id == folderId }
+            pins.add(
+                0,
+                LibraryItem(
+                    id = "bookmark_${folderId}_${ayah.surahNumber}_${ayah.ayahNumberInSurah}",
+                    surahNumber = ayah.surahNumber,
+                    ayahNumber = ayah.ayahNumberInSurah,
+                    surahName = surahName,
+                    arabicSnippet = ayah.textUthmani,
+                    translationSnippet = ayah.banglaTranslation,
+                    folderId = folderId,
+                    folderName = folder?.name ?: "Folder",
+                    type = LibraryType.PIN
+                )
+            )
+        }
+        _pinnedAyahs.value = pins
+
+        // Recalculate folder item counts
+        _bookmarkFolders.value = _bookmarkFolders.value.map { folder ->
+            val count = if (folder.id == "folder_fav") {
+                _favoriteAyahs.value.size
+            } else {
+                _pinnedAyahs.value.count { it.folderId == folder.id }
+            }
+            folder.copy(itemCount = count)
+        }
+    }
+
+    // Celebration Dialog Don't Show Again Preference
+    fun setDontShowCelebrationAgain(dontShow: Boolean) {
+        _dontShowCelebrationAgain.value = dontShow
+        prefs.edit().putBoolean("dont_show_celebration", dontShow).apply()
+    }
+
+    // Favorites Management
+    fun isAyahFavorite(surahNumber: Int, ayahNumber: Int): Boolean {
+        return _favoriteAyahs.value.any { it.surahNumber == surahNumber && it.ayahNumber == ayahNumber }
+    }
+
+    fun toggleFavorite(ayah: AyahItem) {
+        val list = _favoriteAyahs.value.toMutableList()
+        val index = list.indexOfFirst { it.surahNumber == ayah.surahNumber && it.ayahNumber == ayah.ayahNumberInSurah }
+        if (index >= 0) {
+            list.removeAt(index)
+        } else {
+            val surah = QuranData.surahs.find { it.number == ayah.surahNumber }
+            list.add(
+                0,
+                LibraryItem(
+                    id = "fav_${System.currentTimeMillis()}",
+                    surahNumber = ayah.surahNumber,
+                    ayahNumber = ayah.ayahNumberInSurah,
+                    surahName = surah?.englishName ?: "Surah ${ayah.surahNumber}",
+                    arabicSnippet = ayah.textUthmani,
+                    translationSnippet = ayah.banglaTranslation,
+                    type = LibraryType.FAVORITE
+                )
+            )
+        }
+        _favoriteAyahs.value = list
+    }
+
+    fun removeFavorite(item: LibraryItem) {
+        _favoriteAyahs.value = _favoriteAyahs.value.filter { it.id != item.id }
+    }
+
+    // Surah Completion with positive reinforcement indicator
+    fun isSurahCompleted(surahNumber: Int): Boolean {
+        return _completedSurahs.value.contains(surahNumber)
+    }
+
+    fun toggleSurahCompleted(surahNumber: Int) {
+        val currentSet = _completedSurahs.value.toMutableSet()
+        val isNowCompleted: Boolean
+        if (currentSet.contains(surahNumber)) {
+            currentSet.remove(surahNumber)
+            isNowCompleted = false
+        } else {
+            currentSet.add(surahNumber)
+            isNowCompleted = true
+        }
+        _completedSurahs.value = currentSet
+
+        if (isNowCompleted) {
+            val surah = QuranData.surahs.find { it.number == surahNumber }
+            _surahCompletedFeedback.value = surah
+        }
+    }
+
+    fun clearSurahCompletedFeedback() {
+        _surahCompletedFeedback.value = null
+    }
+
+    // Daily Reminder
+    fun updateDailyReminderSettings(settings: DailyReminderSettings) {
+        _dailyReminderSettings.value = settings
+        DailyReminderManager.saveSettings(getApplication(), settings)
+    }
+
+    fun sendTestDailyReminder() {
+        DailyReminderManager.sendTestNotification(
+            getApplication(),
+            _dailyReminderSettings.value.reminderText
+        )
     }
 
     fun addNote(ayah: AyahItem, noteText: String) {

@@ -15,6 +15,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -23,10 +24,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -57,7 +60,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            AlQuranEditorTheme {
+            val readingSettings by viewModel.readingSettings.collectAsStateWithLifecycle()
+            AlQuranEditorTheme(
+                theme = readingSettings.appColorTheme,
+                nightModeOption = readingSettings.nightModeOption
+            ) {
                 QuranAppRoot(viewModel = viewModel)
             }
         }
@@ -96,14 +103,29 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
     val isPlayerBottomSheetOpen by viewModel.isPlayerBottomSheetOpen.collectAsStateWithLifecycle()
     val isTimingGeneratorOpen by viewModel.isTimingGeneratorOpen.collectAsStateWithLifecycle()
     val isFontSettingsOpen by viewModel.isFontSettingsOpen.collectAsStateWithLifecycle()
+    val isThemeSelectorOpen by viewModel.isThemeSelectorOpen.collectAsStateWithLifecycle()
     val isDownloadManagerOpen by viewModel.isDownloadManagerOpen.collectAsStateWithLifecycle()
     val selectedReciterForDownload by viewModel.selectedReciterForDownload.collectAsStateWithLifecycle()
+    val sessionSummary by viewModel.sessionSummary.collectAsStateWithLifecycle()
+    val sessionSummaryToast by viewModel.sessionSummaryToast.collectAsStateWithLifecycle()
+
+    LaunchedEffect(sessionSummaryToast) {
+        sessionSummaryToast?.let { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+            viewModel.clearSessionSummaryToast()
+        }
+    }
 
     val isAutoScrollActive by viewModel.isAutoScrollActive.collectAsStateWithLifecycle()
     val autoScrollSpeed by viewModel.autoScrollSpeed.collectAsStateWithLifecycle()
 
     val lastReadList by viewModel.lastReadList.collectAsStateWithLifecycle()
     val pinnedAyahs by viewModel.pinnedAyahs.collectAsStateWithLifecycle()
+    val favoriteAyahs by viewModel.favoriteAyahs.collectAsStateWithLifecycle()
+    val bookmarkFolders by viewModel.bookmarkFolders.collectAsStateWithLifecycle()
+    val dontShowCelebrationAgain by viewModel.dontShowCelebrationAgain.collectAsStateWithLifecycle()
+    val completedSurahs by viewModel.completedSurahs.collectAsStateWithLifecycle()
+    val dailyReminderSettings by viewModel.dailyReminderSettings.collectAsStateWithLifecycle()
     val userNotes by viewModel.userNotes.collectAsStateWithLifecycle()
     val activePlanners by viewModel.activePlanners.collectAsStateWithLifecycle()
     val completedPlanners by viewModel.completedPlanners.collectAsStateWithLifecycle()
@@ -118,6 +140,7 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
     val weeklyReadingSummary by viewModel.weeklyReadingSummary.collectAsStateWithLifecycle()
 
     var showNoteDialogForAyah by remember { mutableStateOf<AyahItem?>(null) }
+    var selectedAyahForBookmarkFolders by remember { mutableStateOf<AyahItem?>(null) }
 
     // Back handling
     BackHandler(enabled = isReadingMode || isReciterSelectorOpen || drawerState.isOpen) {
@@ -135,6 +158,7 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                 onItemClick = { itemId ->
                     scope.launch { drawerState.close() }
                     when (itemId) {
+                        "theme_night_mode" -> viewModel.setThemeSelectorOpen(true)
                         "jump_to_ayah" -> viewModel.setJumpToAyahOpen(true)
                         "font_studio" -> viewModel.setFontSettingsOpen(true)
                         "timing_sync" -> viewModel.setTimingGeneratorOpen(true)
@@ -172,6 +196,9 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                         },
                         isSearchActive = isSearchActive,
                         searchQuery = searchQuery,
+                        isNightMode = readingSettings.nightModeOption == com.example.data.model.NightModeOption.NIGHT || readingSettings.nightModeOption == com.example.data.model.NightModeOption.OLED_BLACK,
+                        onToggleNightMode = { viewModel.toggleNightMode() },
+                        onOpenThemeSelector = { viewModel.setThemeSelectorOpen(true) },
                         onSearchQueryChange = { viewModel.setSearchQuery(it) },
                         onSearchToggle = { viewModel.setSearchActive(!isSearchActive) },
                         onTitleClick = { viewModel.setJumpToAyahOpen(true) },
@@ -282,6 +309,12 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                         audioState = audioState,
                         isAutoScrollActive = isAutoScrollActive,
                         autoScrollSpeed = autoScrollSpeed,
+                        isFavoriteAyah = { s, a -> viewModel.isAyahFavorite(s, a) },
+                        isSurahCompleted = viewModel.isSurahCompleted(currentSurah.number),
+                        dontShowCelebrationAgain = dontShowCelebrationAgain,
+                        onToggleSurahCompleted = { viewModel.toggleSurahCompleted(currentSurah.number) },
+                        onSetDontShowCelebration = { viewModel.setDontShowCelebrationAgain(it) },
+                        onToggleFavoriteAyah = { viewModel.toggleFavorite(it) },
                         onBack = { viewModel.closeReadingMode() },
                         onTitleClick = { viewModel.setJumpToAyahOpen(true) },
                         onToggleLayoutMode = {
@@ -301,6 +334,10 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                         onAutoScrollSpeedChange = { viewModel.setAutoScrollSpeed(it) },
                         onOpenAudioEditor = { viewModel.setAudioEditorOpen(true) },
                         onOpenPlayerBottomSheet = { viewModel.setPlayerBottomSheetOpen(true) },
+                        onPlayPauseAudio = { viewModel.audioPlayer.togglePlayPause() },
+                        onSeekAudio = { viewModel.audioPlayer.seekTo(it) },
+                        onNextAyahAudio = { viewModel.audioPlayer.skipNext() },
+                        onPreviousAyahAudio = { viewModel.audioPlayer.skipPrevious() },
                         onOpenPlanner = {
                             viewModel.closeReadingMode()
                             viewModel.setTab(1)
@@ -313,11 +350,13 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                             viewModel.setPlayerBottomSheetOpen(true)
                         },
                         onAddBookmark = { ayah ->
-                            viewModel.addPin(ayah)
-                            Toast.makeText(context, "Added Ayah ${ayah.ayahNumberInSurah} to Pins", Toast.LENGTH_SHORT).show()
+                            selectedAyahForBookmarkFolders = ayah
                         },
                         onAddNoteClick = { ayah ->
                             showNoteDialogForAyah = ayah
+                        },
+                        onFontSizeChange = { newSize ->
+                            viewModel.updateSettings { it.copy(arabicFontSizeSp = newSize) }
                         }
                     )
                 } else {
@@ -352,10 +391,12 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                             activeSubTab = librarySubTab,
                             onSubTabChange = { viewModel.setLibrarySubTab(it) },
                             lastReadList = lastReadList,
+                            favoriteList = favoriteAyahs,
                             pinnedList = pinnedAyahs,
                             notesList = userNotes,
                             onNavigateToAyah = { s, a -> viewModel.openSurah(s, a) },
                             onDeletePin = { viewModel.removePin(it) },
+                            onDeleteFavorite = { viewModel.removeFavorite(it) },
                             onDeleteNote = { viewModel.deleteNote(it) }
                         )
                         4 -> StatsScreen(
@@ -363,6 +404,10 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                             readTodayMinutes = readTodayMin,
                             readTargetMinutes = readTargetMin,
                             weeklyStats = viewModel.weeklyStats,
+                            weeklyReadingSummary = weeklyReadingSummary,
+                            dailyReminderSettings = dailyReminderSettings,
+                            onUpdateDailyReminder = { viewModel.updateDailyReminderSettings(it) },
+                            onSendTestReminder = { viewModel.sendTestDailyReminder() },
                             currentUser = currentUser,
                             cloudSyncStatus = cloudSyncStatus,
                             cloudUserData = cloudUserData,
@@ -413,6 +458,10 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                 viewModel.setQuickSettingsOpen(false)
                 viewModel.setFontSettingsOpen(true)
             },
+            onOpenThemeSelector = {
+                viewModel.setQuickSettingsOpen(false)
+                viewModel.setThemeSelectorOpen(true)
+            },
             onDismiss = { viewModel.setQuickSettingsOpen(false) }
         )
     }
@@ -427,10 +476,20 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
     // Ayah Options Bottom Sheet (1st Level)
     if (isAyahOptionsOpen && selectedAyahForOptions != null) {
         val ayah = selectedAyahForOptions!!
+        val isFav = viewModel.isAyahFavorite(ayah.surahNumber, ayah.ayahNumberInSurah)
         AyahOptionsBottomSheet(
             ayah = ayah,
             surahNumber = currentSurah.number,
             currentReciter = audioState.currentReciter,
+            isFavorite = isFav,
+            onToggleFavorite = {
+                viewModel.toggleFavorite(ayah)
+                Toast.makeText(
+                    context,
+                    if (isFav) "Removed Ayah ${ayah.ayahNumberInSurah} from Favorites" else "Added Ayah ${ayah.ayahNumberInSurah} to Favorites ⭐",
+                    Toast.LENGTH_SHORT
+                ).show()
+            },
             onCopy = {
                 val clip = ClipData.newPlainText(
                     "Ayah ${ayah.surahNumber}:${ayah.ayahNumberInSurah}",
@@ -461,10 +520,33 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                 viewModel.setTimingGeneratorOpen(true)
             },
             onAddBookmark = {
-                viewModel.addPin(ayah)
-                Toast.makeText(context, "Added Ayah ${ayah.ayahNumberInSurah} to Pins", Toast.LENGTH_SHORT).show()
+                val targetAyah = ayah
+                viewModel.setAyahOptionsOpen(false)
+                selectedAyahForBookmarkFolders = targetAyah
             },
             onDismiss = { viewModel.setAyahOptionsOpen(false) }
+        )
+    }
+
+    // Interactive Bookmark & Folder Management Bottom Sheet
+    if (selectedAyahForBookmarkFolders != null) {
+        val ayah = selectedAyahForBookmarkFolders!!
+        val currentFolderIds = remember(ayah, bookmarkFolders) {
+            viewModel.getFoldersForAyah(ayah.surahNumber, ayah.ayahNumberInSurah).toSet()
+        }
+        BookmarkBottomSheet(
+            ayah = ayah,
+            folders = bookmarkFolders,
+            selectedFolderIds = currentFolderIds,
+            onCreateFolder = { folderName, colorHex, _ ->
+                viewModel.createBookmarkFolder(folderName, colorHex)
+            },
+            onSaveSelection = { selectedIds ->
+                viewModel.saveAyahToFolders(ayah, selectedIds.toList())
+                Toast.makeText(context, "বুকমার্ক সংরক্ষিত হয়েছে", Toast.LENGTH_SHORT).show()
+                selectedAyahForBookmarkFolders = null
+            },
+            onDismiss = { selectedAyahForBookmarkFolders = null }
         )
     }
 
@@ -687,5 +769,165 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                 }
             }
         }
+    }
+
+    // Theme & Night Mode Selector Bottom Sheet
+    if (isThemeSelectorOpen) {
+        ThemeSelectionBottomSheet(
+            settings = readingSettings,
+            onColorThemeSelected = { viewModel.setAppColorTheme(it) },
+            onNightModeSelected = { viewModel.setNightModeOption(it) },
+            onToggleHighContrast = { viewModel.setHighContrastNightText(it) },
+            onDismiss = { viewModel.setThemeSelectorOpen(false) }
+        )
+    }
+
+    // Reading Session Summary Dialog / Notification with 3 distinct functional buttons
+    if (sessionSummary != null) {
+        val summary = sessionSummary!!
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissSessionSummary() },
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            },
+            title = {
+                Text(
+                    text = "সূরা তিলাওয়াত সম্পন্ন",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "সূরা ${summary.surahName} (${summary.surahArabicName})",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "তিলাওয়াত সময়কাল:",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = summary.formattedDuration,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "মোট আয়াত:",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "${summary.totalAyahs} টি",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "আপনার দৈনিক তিলাওয়াত রেকর্ড ও স্ট্রীক পরিসংখ্যানে এই সময়কাল সফলভাবে যুক্ত হয়েছে।",
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // 3 Functional Buttons Layout
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Button 1: আলহামদুলিল্লাহ (Primary filled)
+                        Button(
+                            onClick = { viewModel.confirmSessionSummary() },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("আলহামদুলিল্লাহ", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
+
+                        // Button 2: পরে মনে করান (Outlined)
+                        OutlinedButton(
+                            onClick = { viewModel.remindSessionSummaryLater() },
+                            shape = RoundedCornerShape(10.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(42.dp)
+                        ) {
+                            Text("পরে মনে করান", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        }
+
+                        // Button 3: আর দেখাবেন না (Outlined button with border)
+                        OutlinedButton(
+                            onClick = { viewModel.neverShowSessionSummaryAgain() },
+                            shape = RoundedCornerShape(10.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                        ) {
+                            Text("আর দেখাবেন না", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = null
+        )
     }
 }

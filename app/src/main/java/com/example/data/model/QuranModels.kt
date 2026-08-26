@@ -73,6 +73,18 @@ data class PlannerItem(
     val category: String = "Read Complete Quran"
 )
 
+data class BookmarkFolder(
+    val id: String,
+    val name: String,
+    val colorHex: String = "#1E563F", // Islamic Emerald by default
+    val iconType: String = "bookmark", // "clock", "bookmark", "star", "heart"
+    val iconName: String = "Bookmark",
+    val itemCount: Int = 0,
+    val isSystem: Boolean = false,
+    val savedAyahs: List<String> = emptyList(),
+    val createdAt: Long = System.currentTimeMillis()
+)
+
 data class LibraryItem(
     val id: String,
     val surahNumber: Int,
@@ -82,6 +94,8 @@ data class LibraryItem(
     val translationSnippet: String,
     val noteText: String = "",
     val type: LibraryType = LibraryType.COLLECTION,
+    val folderId: String? = null,
+    val folderName: String? = null,
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -89,8 +103,16 @@ enum class LibraryType {
     COLLECTION,
     PIN,
     NOTE,
-    LAST_READ
+    LAST_READ,
+    FAVORITE
 }
+
+data class DailyReminderSettings(
+    val isEnabled: Boolean = true,
+    val hour: Int = 8,
+    val minute: Int = 0,
+    val reminderText: String = "সময় হয়েছে আজকের কুরআন তিলাওয়াতের! আপনার রুটিন বজায় রাখুন ✨"
+)
 
 data class TopicItem(
     val id: String,
@@ -203,7 +225,8 @@ data class ReadingSettings(
     val selectedMushafType: String = "Mushaf Unicode Text", // or "Classic Madani Mushaf"
     val appColorTheme: AppColorTheme = AppColorTheme.EMERALD,
     val nightModeOption: NightModeOption = NightModeOption.LIGHT,
-    val highContrastNightText: Boolean = true
+    val highContrastNightText: Boolean = true,
+    val showSessionSummary: Boolean = true
 )
 
 data class DailyVersesMetric(
@@ -223,3 +246,14 @@ data class WeeklyReadingSummary(
     val totalMinutesThisWeek: Int = 174,
     val goalVersesDaily: Int = 30
 )
+
+data class ReadingSessionSummary(
+    val surahNumber: Int,
+    val surahName: String,
+    val surahArabicName: String,
+    val durationSeconds: Long,
+    val formattedDuration: String,
+    val totalAyahs: Int
+)
+
+

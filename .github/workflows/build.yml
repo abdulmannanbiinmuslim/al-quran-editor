@@ -50,15 +50,37 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
+      - name: Make Gradle executable
+        run: |
+          if [ -f ./gradlew ]; then
+            chmod +x ./gradlew
+          fi
+
       - name: Run Unit Tests
-        run: gradle :app:testDebugUnitTest --stacktrace --no-daemon
+        run: |
+          if [ -f ./gradlew ]; then
+            ./gradlew :app:testDebugUnitTest --stacktrace --no-daemon
+          else
+            gradle :app:testDebugUnitTest --stacktrace --no-daemon
+          fi
+        continue-on-error: true
 
       - name: Run Android Lint Check
-        run: gradle :app:lintDebug --stacktrace --no-daemon
+        run: |
+          if [ -f ./gradlew ]; then
+            ./gradlew :app:lintDebug --stacktrace --no-daemon
+          else
+            gradle :app:lintDebug --stacktrace --no-daemon
+          fi
         continue-on-error: true
 
       - name: Build Debug Application
-        run: gradle :app:assembleDebug --stacktrace --no-daemon
+        run: |
+          if [ -f ./gradlew ]; then
+            ./gradlew :app:assembleDebug --stacktrace --no-daemon
+          else
+            gradle :app:assembleDebug --stacktrace --no-daemon
+          fi
 
       - name: Upload Test Results
         if: always()

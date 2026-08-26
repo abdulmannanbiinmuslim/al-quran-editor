@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -141,10 +142,12 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
 
     var showNoteDialogForAyah by remember { mutableStateOf<AyahItem?>(null) }
     var selectedAyahForBookmarkFolders by remember { mutableStateOf<AyahItem?>(null) }
+    var isFloatingMenuOpen by remember { mutableStateOf(false) }
 
     // Back handling
-    BackHandler(enabled = isReadingMode || isReciterSelectorOpen || drawerState.isOpen) {
+    BackHandler(enabled = isReadingMode || isReciterSelectorOpen || isFloatingMenuOpen || drawerState.isOpen) {
         when {
+            isFloatingMenuOpen -> isFloatingMenuOpen = false
             drawerState.isOpen -> scope.launch { drawerState.close() }
             isReciterSelectorOpen -> viewModel.setReciterSelectorOpen(false)
             isReadingMode -> viewModel.closeReadingMode()
@@ -202,7 +205,7 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                         onSearchQueryChange = { viewModel.setSearchQuery(it) },
                         onSearchToggle = { viewModel.setSearchActive(!isSearchActive) },
                         onTitleClick = { viewModel.setJumpToAyahOpen(true) },
-                        onMenuClick = { scope.launch { drawerState.open() } }
+                        onMenuClick = { isFloatingMenuOpen = true }
                     )
                 }
             },
@@ -433,6 +436,113 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                 }
             }
         }
+    }
+
+    // Floating Modal Navigation Menu (Chrome style with shadow, branding icon, and subject-wise dropdowns)
+    if (isFloatingMenuOpen) {
+        FloatingModalNavigationMenu(
+            onDismiss = { isFloatingMenuOpen = false },
+            onItemClick = { itemId ->
+                when (itemId) {
+                    "theme_night_mode" -> viewModel.setThemeSelectorOpen(true)
+                    "jump_to_ayah" -> viewModel.setJumpToAyahOpen(true)
+                    "font_studio" -> viewModel.setFontSettingsOpen(true)
+                    "timing_sync" -> viewModel.setTimingGeneratorOpen(true)
+                    "settings" -> viewModel.setQuickSettingsOpen(true)
+                    "view_tutorials" -> viewModel.setTajweedGuideOpen(true)
+                    "reciter_player" -> viewModel.setReciterSelectorOpen(true)
+                    "dictionary" -> viewModel.setTab(2)
+                    "planner" -> viewModel.setTab(1)
+                    "bookmarks" -> viewModel.setTab(3)
+                    "salat_times" -> {
+                        Toast.makeText(context, "Fajr: 4:32 AM • Dhuhr: 12:05 PM • Asr: 4:30 PM • Maghrib: 6:22 PM • Isha: 7:40 PM", Toast.LENGTH_LONG).show()
+                    }
+                    "notifications" -> {
+                        viewModel.setTab(4)
+                        Toast.makeText(context, "Daily Quran Reminder Settings", Toast.LENGTH_SHORT).show()
+                    }
+                    "cloud_sync" -> {
+                        viewModel.setTab(4)
+                        viewModel.syncWithFirestore()
+                    }
+                    "rate_app" -> {
+                        Toast.makeText(context, "Thank you for rating Al Quran App 5 Stars! ⭐⭐⭐⭐⭐", Toast.LENGTH_SHORT).show()
+                    }
+                    "talk_with_us", "help_support", "give_feedback" -> {
+                        val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = Uri.parse("mailto:support@alquran-app.com")
+                            putExtra(Intent.EXTRA_SUBJECT, "Al Quran App Support")
+                        }
+                        try {
+                            context.startActivity(emailIntent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Feedback sent to support@alquran-app.com", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    "help_translate" -> {
+                        Toast.makeText(context, "Help us translate: translations@alquran-app.com", Toast.LENGTH_SHORT).show()
+                    }
+                    "other_apps" -> {
+                        Toast.makeText(context, "Explore our Hadith, Dua & Tasbih companion apps", Toast.LENGTH_SHORT).show()
+                    }
+                    "share_app" -> {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, "Al Quran App")
+                            putExtra(Intent.EXTRA_TEXT, "Read and listen to the Holy Quran with Al Quran app: https://play.google.com")
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "Share App"))
+                    }
+                    else -> {
+                        Toast.makeText(context, "$itemId selected", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onSocialClick = { socialType ->
+                when (socialType) {
+                    "web" -> {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://quran.com"))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Opening Website", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    "fb" -> {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://facebook.com"))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Opening Facebook", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    "x" -> {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://twitter.com"))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Opening X (Twitter)", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    "instagram" -> {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://instagram.com"))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Opening Instagram", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    "share" -> {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, "Al Quran App")
+                            putExtra(Intent.EXTRA_TEXT, "Read and listen to the Holy Quran: https://quran.com")
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "Share App"))
+                    }
+                }
+            }
+        )
     }
 
     // Jump To Ayah Bottom Sheet

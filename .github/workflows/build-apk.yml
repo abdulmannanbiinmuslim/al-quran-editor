@@ -88,6 +88,7 @@ jobs:
         with:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          compression-level: 0
           if-no-files-found: error
 
       - name: Prepare APK release asset
@@ -95,10 +96,9 @@ jobs:
         run: |
           mkdir -p release_asset_dir
           REPO_NAME=$(echo "${{ github.repository }}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
-          ASSET_NAME="${REPO_NAME}-debug-build-${{ github.run_number }}.apk"
-          cp app/build/outputs/apk/debug/app-debug.apk "release_asset_dir/$ASSET_NAME"
-          echo "asset_path=release_asset_dir/$ASSET_NAME" >> $GITHUB_OUTPUT
-          echo "asset_name=$ASSET_NAME" >> $GITHUB_OUTPUT
+          cp app/build/outputs/apk/debug/app-debug.apk "release_asset_dir/app-debug.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "release_asset_dir/${REPO_NAME}-v${{ github.run_number }}.apk"
+          echo "asset_path=release_asset_dir/*" >> $GITHUB_OUTPUT
 
       - name: Publish APK to GitHub Releases
         id: publish_release
@@ -111,11 +111,12 @@ jobs:
           RELEASE_TITLE="Debug APK Build #${{ github.run_number }}"
           
           gh release create "$TAG_NAME" \
-            "${{ steps.prepare_asset.outputs.asset_path }}" \
+            release_asset_dir/app-debug.apk \
+            release_asset_dir/*.apk \
             --title "$RELEASE_TITLE" \
             --target "${{ github.sha }}" \
             --latest \
-            --notes "This is an automatically generated Kotlin-supported debug APK built by GitHub Actions. Run number: ${{ github.run_number }}, Attempt: ${{ github.run_attempt }}, Commit SHA: ${{ github.sha }}."
+            --notes "Direct installable APK build #${{ github.run_number }}. Download app-debug.apk directly without unzipping."
 
       - name: Report APK download result
         env:

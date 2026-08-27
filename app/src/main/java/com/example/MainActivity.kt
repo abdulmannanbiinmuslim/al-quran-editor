@@ -788,6 +788,7 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
     if (isFontSettingsOpen) {
         ArabicFontSettingsBottomSheet(
             settings = readingSettings,
+            onScriptSelected = { script -> viewModel.setScriptType(script) },
             onFontSelected = { font -> viewModel.setFontFamily(font) },
             onFontSizeChanged = { size -> viewModel.setArabicFontSize(size) },
             onLineHeightMultiplierChanged = { mult -> viewModel.setArabicLineHeightMultiplier(mult) },

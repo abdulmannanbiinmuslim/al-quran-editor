@@ -7,6 +7,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import com.example.data.model.QuranFontFamily
+import com.example.data.model.QuranScriptType
 
 enum class QuranFontCategory(val displayName: String, val banglaName: String) {
     ALL("All Fonts", "সকল ফন্ট"),
@@ -155,6 +156,20 @@ object QuranTypography {
             sampleAyahSnippet = "إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ ۝٤"
         )
     )
+
+    fun getFontsForScript(script: QuranScriptType): List<QuranFontDetail> {
+        return when (script) {
+            QuranScriptType.MADANI_UTHMANI -> availableFonts.filter { it.category == QuranFontCategory.UTHMANIC_MADANI || it.category == QuranFontCategory.CALLIGRAPHIC }
+            QuranScriptType.INDOPAK -> availableFonts.filter { it.category == QuranFontCategory.INDOPAK_NASTALEEQ }
+        }
+    }
+
+    fun getDefaultFontForScript(script: QuranScriptType): QuranFontFamily {
+        return when (script) {
+            QuranScriptType.MADANI_UTHMANI -> QuranFontFamily.UTHMANIC_HAFS
+            QuranScriptType.INDOPAK -> QuranFontFamily.INDOPAK_NASTALEEQ
+        }
+    }
 
     fun getFontFamily(font: QuranFontFamily): FontFamily {
         return when (font) {

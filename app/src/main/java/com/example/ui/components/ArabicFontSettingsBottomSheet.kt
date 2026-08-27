@@ -27,18 +27,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.QuranFontFamily
+import com.example.data.model.QuranScriptType
 import com.example.data.model.ReadingSettings
 import com.example.ui.theme.*
 
 /**
  * Dedicated Arabic Fonts & Typography Studio Settings Panel
  * Allows users to dynamically switch between Arabic fonts loaded from the assets folder,
- * adjust line-height, letter-spacing, font weight, and preview scriptures in real time.
+ * adjust line-height, letter-spacing, font weight, script type, and preview scriptures in real time.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArabicFontSettingsBottomSheet(
     settings: ReadingSettings,
+    onScriptSelected: (QuranScriptType) -> Unit = {},
     onFontSelected: (QuranFontFamily) -> Unit,
     onFontSizeChanged: (Float) -> Unit,
     onLineHeightMultiplierChanged: (Float) -> Unit,
@@ -61,7 +63,7 @@ fun ArabicFontSettingsBottomSheet(
 
     val currentFontDetail = QuranTypography.getFontDetail(settings.selectedFont)
 
-    val filteredFonts = remember(selectedCategoryIndex) {
+    val filteredFonts = remember(selectedCategoryIndex, settings.selectedScript) {
         when (selectedCategoryIndex) {
             1 -> QuranTypography.availableFonts.filter { it.category == QuranFontCategory.UTHMANIC_MADANI }
             2 -> QuranTypography.availableFonts.filter { it.category == QuranFontCategory.INDOPAK_NASTALEEQ }
@@ -95,13 +97,13 @@ fun ArabicFontSettingsBottomSheet(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(IslamicEmeraldContainer),
+                            .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.MenuBook,
                             contentDescription = null,
-                            tint = IslamicEmeraldPrimary,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -111,11 +113,11 @@ fun ArabicFontSettingsBottomSheet(
                             text = "Arabic Fonts & Typography",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = IslamicEmeraldPrimary
+                                color = MaterialTheme.colorScheme.primary
                             )
                         )
                         Text(
-                            text = "ফন্ট ও ক্যালিগ্রাফি স্টুডিও (Assets Fonts)",
+                            text = "লিপি, ফন্ট ও ক্যালিগ্রাফি স্টুডিও (Real-time Customization)",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -130,11 +132,117 @@ fun ArabicFontSettingsBottomSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
+            // ==========================================
+            // DUAL SCRIPT SELECTOR (মাদানী/উসমানী ও ইন্দোপাক)
+            // ==========================================
+            Text(
+                text = "কুরআন স্ক্রিপ্ট নির্বাচন (Quran Script Selection):",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                val isMadani = settings.selectedScript == QuranScriptType.MADANI_UTHMANI
+                Surface(
+                    onClick = {
+                        onScriptSelected(QuranScriptType.MADANI_UTHMANI)
+                        selectedCategoryIndex = 1
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isMadani) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    border = BorderStroke(
+                        width = if (isMadani) 2.dp else 1.dp,
+                        color = if (isMadani) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("script_button_madani")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = isMadani,
+                                onClick = {
+                                    onScriptSelected(QuranScriptType.MADANI_UTHMANI)
+                                    selectedCategoryIndex = 1
+                                },
+                                colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                            )
+                            Text(
+                                text = "উসমানী / মাদানী",
+                                fontWeight = if (isMadani) FontWeight.Bold else FontWeight.Medium,
+                                fontSize = 13.sp,
+                                color = if (isMadani) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text(
+                            text = "মদীনা মুসহাফ স্ট্যান্ডার্ড",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                val isIndoPak = settings.selectedScript == QuranScriptType.INDOPAK
+                Surface(
+                    onClick = {
+                        onScriptSelected(QuranScriptType.INDOPAK)
+                        selectedCategoryIndex = 2
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isIndoPak) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                    border = BorderStroke(
+                        width = if (isIndoPak) 2.dp else 1.dp,
+                        color = if (isIndoPak) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("script_button_indopak")
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(
+                                selected = isIndoPak,
+                                onClick = {
+                                    onScriptSelected(QuranScriptType.INDOPAK)
+                                    selectedCategoryIndex = 2
+                                },
+                                colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                            )
+                            Text(
+                                text = "ইন্দোপাক লিপি",
+                                fontWeight = if (isIndoPak) FontWeight.Bold else FontWeight.Medium,
+                                fontSize = 13.sp,
+                                color = if (isIndoPak) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text(
+                            text = "সাবকন্টিনেন্টাল এশিয়ান লিপি",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
             // Live Interactive Scripture Preview Card
             Surface(
-                color = IslamicEmeraldContainer.copy(alpha = 0.35f),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
                 shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.35f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -149,13 +257,13 @@ fun ArabicFontSettingsBottomSheet(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = IslamicEmeraldPrimary.copy(alpha = 0.15f)
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                         ) {
                             Text(
                                 text = "Live Preview (${settings.arabicFontSizeSp.toInt()}sp • ${settings.arabicFontWeight})",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = IslamicEmeraldPrimary,
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                             )
                         }
@@ -177,7 +285,7 @@ fun ArabicFontSettingsBottomSheet(
                                 Icon(
                                     imageVector = Icons.Default.Refresh,
                                     contentDescription = "Switch verse",
-                                    tint = IslamicEmeraldPrimary,
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -188,7 +296,7 @@ fun ArabicFontSettingsBottomSheet(
 
                     // Arabic Scripture Rendered with Current Typography Settings
                     val currentSample = sampleVerses[selectedPreviewAyahIndex].second
-                    val formattedSample = if (settings.selectedFont.name.startsWith("INDOPAK")) {
+                    val formattedSample = if (settings.selectedScript == QuranScriptType.INDOPAK || settings.selectedFont.name.startsWith("INDOPAK")) {
                         currentSample
                             .replace("ٱ", "ا")
                             .replace("ٰ", "")
@@ -226,7 +334,7 @@ fun ArabicFontSettingsBottomSheet(
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = null,
-                                tint = IslamicEmeraldPrimary,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -234,7 +342,7 @@ fun ArabicFontSettingsBottomSheet(
                                 text = "${currentFontDetail.displayName} • ${currentFontDetail.scriptType}",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = IslamicEmeraldDark
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -306,7 +414,7 @@ fun ArabicFontSettingsBottomSheet(
                 selectedTabIndex = selectedCategoryIndex,
                 edgePadding = 0.dp,
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                contentColor = IslamicEmeraldPrimary,
+                contentColor = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
@@ -349,10 +457,10 @@ fun ArabicFontSettingsBottomSheet(
 
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = if (isSelected) IslamicEmeraldContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surface,
+                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surface,
                     border = BorderStroke(
                         width = if (isSelected) 1.8.dp else 1.dp,
-                        color = if (isSelected) IslamicEmeraldPrimary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -377,7 +485,7 @@ fun ArabicFontSettingsBottomSheet(
                                 RadioButton(
                                     selected = isSelected,
                                     onClick = { onFontSelected(fontDetail.fontFamilyEnum) },
-                                    colors = RadioButtonDefaults.colors(selectedColor = IslamicEmeraldPrimary)
+                                    colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Column {
@@ -385,7 +493,7 @@ fun ArabicFontSettingsBottomSheet(
                                         text = fontDetail.displayName,
                                         fontSize = 14.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                        color = if (isSelected) IslamicEmeraldPrimary else MaterialTheme.colorScheme.onSurface
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
                                         text = "${fontDetail.banglaName} • ${fontDetail.scriptType}",
@@ -426,7 +534,7 @@ fun ArabicFontSettingsBottomSheet(
                                     fontWeight = FontWeight.Bold
                                 ),
                                 textAlign = TextAlign.Right,
-                                color = if (isSelected) IslamicEmeraldPrimary else MaterialTheme.colorScheme.onSurface,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 12.dp, vertical = 8.dp)
@@ -454,7 +562,7 @@ fun ArabicFontSettingsBottomSheet(
                 text = "টাইপোগ্রাফি ফাইন-টিউনিং (Fine-Tuning Controls)",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
-                color = IslamicEmeraldPrimary
+                color = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -476,7 +584,7 @@ fun ArabicFontSettingsBottomSheet(
                         text = "${settings.arabicFontSizeSp.toInt()} sp",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = IslamicEmeraldPrimary,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 6.dp)
                     )
                     IconButton(
@@ -492,8 +600,8 @@ fun ArabicFontSettingsBottomSheet(
                 onValueChange = onFontSizeChanged,
                 valueRange = 20f..46f,
                 colors = SliderDefaults.colors(
-                    thumbColor = IslamicEmeraldPrimary,
-                    activeTrackColor = IslamicEmeraldPrimary
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary
                 )
             )
 
@@ -510,7 +618,7 @@ fun ArabicFontSettingsBottomSheet(
                     text = String.format("%.2fx", settings.arabicLineHeightMultiplier),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = IslamicEmeraldPrimary
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
             Slider(
@@ -518,8 +626,8 @@ fun ArabicFontSettingsBottomSheet(
                 onValueChange = onLineHeightMultiplierChanged,
                 valueRange = 1.3f..2.4f,
                 colors = SliderDefaults.colors(
-                    thumbColor = IslamicEmeraldPrimary,
-                    activeTrackColor = IslamicEmeraldPrimary
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary
                 )
             )
 
@@ -539,7 +647,7 @@ fun ArabicFontSettingsBottomSheet(
                         onClick = { onFontWeightChanged(weight) },
                         label = { Text(weight, fontSize = 12.sp) },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = IslamicEmeraldPrimary,
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
                             selectedLabelColor = Color.White
                         )
                     )
@@ -566,7 +674,7 @@ fun ArabicFontSettingsBottomSheet(
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("সম্পন্ন (Done)", fontWeight = FontWeight.Bold)
@@ -586,8 +694,8 @@ private fun PresetChip(
 ) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = IslamicEmeraldContainer.copy(alpha = 0.3f),
-        border = BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.25f)),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
         modifier = Modifier.clickable { onClick() }
     ) {
         Column(
@@ -597,7 +705,7 @@ private fun PresetChip(
                 text = title,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = IslamicEmeraldPrimary
+                color = MaterialTheme.colorScheme.primary
             )
             Text(
                 text = subtitle,

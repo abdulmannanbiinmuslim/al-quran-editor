@@ -144,6 +144,11 @@ enum class ReadingLayoutMode {
     PAGE_MUSHAF
 }
 
+enum class QuranScriptType(val id: String, val displayName: String, val banglaName: String) {
+    MADANI_UTHMANI("madani_uthmani", "Madani / Uthmani Script", "মাদানী / উসমানী লিপি"),
+    INDOPAK("indopak", "IndoPak / Asian Script", "ইন্দোপাক / উপমহাদেশীয় লিপি")
+}
+
 enum class QuranFontFamily {
     UTHMANIC_HAFS,
     UTHMANIC_DIGITALKHAT,
@@ -219,6 +224,7 @@ data class ReadingSettings(
     val arabicFontWeight: String = "Bold", // "Normal", "Medium", "SemiBold", "Bold"
     val translationFontSizeSp: Float = 16f,
     val tafsirFontSizeSp: Float = 14f,
+    val selectedScript: QuranScriptType = QuranScriptType.MADANI_UTHMANI,
     val selectedFont: QuranFontFamily = QuranFontFamily.UTHMANIC_HAFS,
     val selectedTranslation: String = "Bangla - Islamic Foundation",
     val selectedTafsir: String = "Bangla - Tafsir Ibn Kathir",

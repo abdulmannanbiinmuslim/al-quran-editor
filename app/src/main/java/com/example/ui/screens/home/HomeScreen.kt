@@ -96,22 +96,9 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 80.dp)
         ) {
-            // 1. Material 3 Islamic Auto-Sliding Hero Banner (Greetings, Daily Ayah, Ayatul Kursi, Quran Gems)
-            item {
-                AutoSlidingHeroBanner(
-                    lastRead = lastReadList.firstOrNull(),
-                    onResumeRead = { item ->
-                        onSurahClick(item.surahNumber, item.ayahNumber)
-                    },
-                    onAyahClick = { surah, ayah ->
-                        onSurahClick(surah, ayah)
-                    }
-                )
-            }
-
             // 2. Featured Reciters (জনপ্রিয় ক্বারীগণ) with Avatar Badges & Glowing Floating Shadow
             item {
-                Column(modifier = Modifier.padding(top = 14.dp, bottom = 8.dp)) {
+                Column(modifier = Modifier.padding(top = 10.dp, bottom = 8.dp)) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -191,15 +178,79 @@ fun HomeScreen(
                                     )
                                 },
                                 colors = SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = IslamicEmeraldContainer.copy(alpha = 0.45f),
-                                    labelColor = IslamicEmeraldPrimary
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                                    labelColor = MaterialTheme.colorScheme.primary
                                 ),
                                 border = androidx.compose.foundation.BorderStroke(
                                     1.dp,
-                                    IslamicEmeraldPrimary.copy(alpha = 0.25f)
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
                                 ),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.testTag("quick_link_$title")
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 3.5 Last Read (সর্বশেষ পঠিত সূরা) - Horizontal Scrollable Row matching Quick Links
+            item {
+                val displayLastRead = remember(lastReadList) {
+                    lastReadList.take(10)
+                }
+
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Outlined.History,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Last Read",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("last_read_horizontal_row")
+                    ) {
+                        items(displayLastRead, key = { it.id }) { item ->
+                            SuggestionChip(
+                                onClick = { onSurahClick(item.surahNumber, item.ayahNumber) },
+                                label = {
+                                    Text(
+                                        text = "${item.surahName.uppercase()} (${item.ayahNumber})",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                },
+                                colors = SuggestionChipDefaults.suggestionChipColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                                    labelColor = MaterialTheme.colorScheme.primary
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.testTag("last_read_chip_${item.surahNumber}")
                             )
                         }
                     }

@@ -30,8 +30,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.repository.QuranData
-import com.example.ui.theme.IslamicEmeraldContainer
-import com.example.ui.theme.IslamicEmeraldPrimary
 import com.example.ui.theme.QuranGold
 
 enum class JumpSubject(val title: String, val banglaTitle: String) {
@@ -117,13 +115,13 @@ fun JumpToAyahBottomSheet(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(IslamicEmeraldContainer),
+                            .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Navigation,
                             contentDescription = "Navigation",
-                            tint = IslamicEmeraldPrimary,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -133,7 +131,7 @@ fun JumpToAyahBottomSheet(
                             text = "Jump to Destination",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = IslamicEmeraldPrimary
+                                color = MaterialTheme.colorScheme.primary
                             )
                         )
                         Text(
@@ -172,7 +170,7 @@ fun JumpToAyahBottomSheet(
                     Surface(
                         onClick = { selectedSubject = subject },
                         shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) IslamicEmeraldPrimary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
                         border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                         modifier = Modifier
                             .weight(1f)
@@ -212,7 +210,7 @@ fun JumpToAyahBottomSheet(
                     Card(
                         shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                        border = BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.25f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
@@ -227,7 +225,7 @@ fun JumpToAyahBottomSheet(
                                         text = "${currentSurah.number}. ${currentSurah.englishName}",
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
-                                            color = IslamicEmeraldPrimary
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     )
                                     Text(
@@ -240,7 +238,7 @@ fun JumpToAyahBottomSheet(
                                 Text(
                                     text = currentSurah.arabicName,
                                     style = MaterialTheme.typography.titleLarge.copy(
-                                        color = IslamicEmeraldPrimary,
+                                        color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 22.sp
                                     )
@@ -346,7 +344,7 @@ fun JumpToAyahBottomSheet(
                                     text = "$selectedSurahNumber / 114 (${currentSurah.englishName})",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = IslamicEmeraldPrimary
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
 
@@ -363,9 +361,9 @@ fun JumpToAyahBottomSheet(
                                 valueRange = 1f..114f,
                                 steps = 113,
                                 colors = SliderDefaults.colors(
-                                    thumbColor = IslamicEmeraldPrimary,
-                                    activeTrackColor = IslamicEmeraldPrimary,
-                                    inactiveTrackColor = IslamicEmeraldContainer
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.primaryContainer
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -387,7 +385,7 @@ fun JumpToAyahBottomSheet(
                                     text = "Ayah $selectedAyahNumber of $maxAyahsInCurrentSurah",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = IslamicEmeraldPrimary
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
 
@@ -400,9 +398,9 @@ fun JumpToAyahBottomSheet(
                                 valueRange = 1f..maxAyahsInCurrentSurah.toFloat(),
                                 steps = if (maxAyahsInCurrentSurah > 1) maxAyahsInCurrentSurah - 1 else 0,
                                 colors = SliderDefaults.colors(
-                                    thumbColor = QuranGold,
-                                    activeTrackColor = QuranGold,
-                                    inactiveTrackColor = QuranGold.copy(alpha = 0.25f)
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.primaryContainer
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -418,7 +416,7 @@ fun JumpToAyahBottomSheet(
                                     onDismiss()
                                 },
                                 shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(50.dp)
@@ -440,7 +438,7 @@ fun JumpToAyahBottomSheet(
                     Card(
                         shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                        border = BorderStroke(1.dp, QuranGold.copy(alpha = 0.35f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
@@ -454,7 +452,7 @@ fun JumpToAyahBottomSheet(
                                         text = "Page $selectedPageNumber of 604",
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
-                                            color = IslamicEmeraldPrimary
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     )
                                     Text(
@@ -467,7 +465,7 @@ fun JumpToAyahBottomSheet(
                                 Text(
                                     text = "صفحة $selectedPageNumber",
                                     style = MaterialTheme.typography.titleMedium.copy(
-                                        color = QuranGold,
+                                        color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold
                                     )
                                 )
@@ -522,7 +520,7 @@ fun JumpToAyahBottomSheet(
                                     text = "পৃষ্ঠা $selectedPageNumber",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = QuranGold
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
 
@@ -535,9 +533,9 @@ fun JumpToAyahBottomSheet(
                                 valueRange = 1f..604f,
                                 steps = 603,
                                 colors = SliderDefaults.colors(
-                                    thumbColor = QuranGold,
-                                    activeTrackColor = QuranGold,
-                                    inactiveTrackColor = QuranGold.copy(alpha = 0.25f)
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.primaryContainer
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -553,7 +551,7 @@ fun JumpToAyahBottomSheet(
                                     onDismiss()
                                 },
                                 shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = QuranGold),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(50.dp)
@@ -576,7 +574,7 @@ fun JumpToAyahBottomSheet(
                     Card(
                         shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                        border = BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.25f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
@@ -590,7 +588,7 @@ fun JumpToAyahBottomSheet(
                                         text = "Juz $selectedJuzNumber (পারা $selectedJuzNumber)",
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
-                                            color = IslamicEmeraldPrimary
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     )
                                     Text(
@@ -603,7 +601,7 @@ fun JumpToAyahBottomSheet(
                                 Text(
                                     text = currentJuzInfo.arabicName,
                                     style = MaterialTheme.typography.titleMedium.copy(
-                                        color = IslamicEmeraldPrimary,
+                                        color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold,
                                         textAlign = TextAlign.End
                                     ),
@@ -667,7 +665,7 @@ fun JumpToAyahBottomSheet(
                                     text = "পারা $selectedJuzNumber / 30",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = IslamicEmeraldPrimary
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
 
@@ -680,9 +678,9 @@ fun JumpToAyahBottomSheet(
                                 valueRange = 1f..30f,
                                 steps = 29,
                                 colors = SliderDefaults.colors(
-                                    thumbColor = IslamicEmeraldPrimary,
-                                    activeTrackColor = IslamicEmeraldPrimary,
-                                    inactiveTrackColor = IslamicEmeraldContainer
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.primaryContainer
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -698,7 +696,7 @@ fun JumpToAyahBottomSheet(
                                     onDismiss()
                                 },
                                 shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(50.dp)
@@ -720,7 +718,7 @@ fun JumpToAyahBottomSheet(
                     Card(
                         shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                        border = BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.25f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
@@ -734,7 +732,7 @@ fun JumpToAyahBottomSheet(
                                         text = "${currentHizbInfo.quarter} Hizb ${currentHizbInfo.number}",
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
-                                            color = IslamicEmeraldPrimary
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     )
                                     Text(
@@ -747,7 +745,7 @@ fun JumpToAyahBottomSheet(
                                 Text(
                                     text = "حزب $selectedHizbNumber",
                                     style = MaterialTheme.typography.titleMedium.copy(
-                                        color = IslamicEmeraldPrimary,
+                                        color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold
                                     )
                                 )
@@ -802,7 +800,7 @@ fun JumpToAyahBottomSheet(
                                     text = "হিযব $selectedHizbNumber / 60",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = IslamicEmeraldPrimary
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
 
@@ -815,9 +813,9 @@ fun JumpToAyahBottomSheet(
                                 valueRange = 1f..60f,
                                 steps = 59,
                                 colors = SliderDefaults.colors(
-                                    thumbColor = IslamicEmeraldPrimary,
-                                    activeTrackColor = IslamicEmeraldPrimary,
-                                    inactiveTrackColor = IslamicEmeraldContainer
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.primaryContainer
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -833,7 +831,7 @@ fun JumpToAyahBottomSheet(
                                     onDismiss()
                                 },
                                 shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(50.dp)
@@ -855,7 +853,7 @@ fun JumpToAyahBottomSheet(
                     Card(
                         shape = RoundedCornerShape(18.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                        border = BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.25f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
@@ -869,7 +867,7 @@ fun JumpToAyahBottomSheet(
                                         text = "Ruku $selectedRukuNumber (রুকু $selectedRukuNumber)",
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold,
-                                            color = IslamicEmeraldPrimary
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     )
                                     Text(
@@ -882,7 +880,7 @@ fun JumpToAyahBottomSheet(
                                 Text(
                                     text = "ركوع $selectedRukuNumber",
                                     style = MaterialTheme.typography.titleMedium.copy(
-                                        color = QuranGold,
+                                        color = MaterialTheme.colorScheme.primary,
                                         fontWeight = FontWeight.Bold
                                     )
                                 )
@@ -937,7 +935,7 @@ fun JumpToAyahBottomSheet(
                                     text = "রুকু $selectedRukuNumber / 556",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = QuranGold
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
 
@@ -950,9 +948,9 @@ fun JumpToAyahBottomSheet(
                                 valueRange = 1f..556f,
                                 steps = 555,
                                 colors = SliderDefaults.colors(
-                                    thumbColor = QuranGold,
-                                    activeTrackColor = QuranGold,
-                                    inactiveTrackColor = QuranGold.copy(alpha = 0.25f)
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.primaryContainer
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -968,7 +966,7 @@ fun JumpToAyahBottomSheet(
                                     onDismiss()
                                 },
                                 shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = QuranGold),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(50.dp)

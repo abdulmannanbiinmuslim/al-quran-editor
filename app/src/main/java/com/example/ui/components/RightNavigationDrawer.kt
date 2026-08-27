@@ -2,6 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -16,9 +17,10 @@ fun RightNavigationDrawerContent(
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp),
         modifier = modifier
             .fillMaxHeight()
-            .width(340.dp)
+            .width(295.dp)
     ) {
         FloatingModalNavigationMenuContent(
             onDismiss = {},

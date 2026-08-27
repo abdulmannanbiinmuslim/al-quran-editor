@@ -804,7 +804,7 @@ private fun AyahCardItem(
 
         // Dynamic Arabic Text with Tajweed Coloring
         if (settings.showArabic) {
-            val rawArabic = if (settings.selectedFont.name.startsWith("INDOPAK")) ayah.textIndopak else ayah.textUthmani
+            val rawArabic = if (settings.selectedScript == com.example.data.model.QuranScriptType.INDOPAK || settings.selectedFont.name.startsWith("INDOPAK")) ayah.textIndopak else ayah.textUthmani
             val baseTextColor = MaterialTheme.colorScheme.onSurface
             val tajweedText = TajweedAnnotator.buildTajweedText(
                 text = rawArabic,
@@ -1006,7 +1006,7 @@ private fun ContinuousMushafParagraphCard(
             val baseTextColor = MaterialTheme.colorScheme.onSurface
             val fullParagraph = buildAnnotatedString {
                 ayahs.forEach { ayah ->
-                    val rawArabic = if (settings.selectedFont.name.startsWith("INDOPAK")) ayah.textIndopak else ayah.textUthmani
+                    val rawArabic = if (settings.selectedScript == com.example.data.model.QuranScriptType.INDOPAK || settings.selectedFont.name.startsWith("INDOPAK")) ayah.textIndopak else ayah.textUthmani
                     val tajweedText = TajweedAnnotator.buildTajweedText(
                         text = rawArabic,
                         baseTextColor = baseTextColor,
@@ -1016,7 +1016,7 @@ private fun ContinuousMushafParagraphCard(
                     val isPlaying = activeAyahNumber == ayah.ayahNumberInSurah
 
                     if (isPlaying) {
-                        withStyle(SpanStyle(background = IslamicEmeraldContainer)) {
+                        withStyle(SpanStyle(background = MaterialTheme.colorScheme.primaryContainer)) {
                             append(tajweedText)
                         }
                     } else {

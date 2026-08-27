@@ -1,0 +1,82 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="128dp"
+    android:height="128dp"
+    android:viewportWidth="128"
+    android:viewportHeight="128">
+
+    <!-- Group: Complete Rosette Medallion -->
+    <group
+        android:name="quran_medallion"
+        android:pivotX="64"
+        android:pivotY="64">
+
+        <!-- Outer Rosette Petals Layer (Warm Gold / Cream Floral Frame) -->
+        <path
+            android:fillColor="#EED9A2"
+            android:strokeColor="#C29B38"
+            android:strokeWidth="1.2"
+            android:pathData="M64,8 C67,14 74,12 79,16 C84,20 83,27 88,32 C93,37 100,36 104,41 C108,46 106,53 110,59 C114,65 120,64 120,64 C120,64 114,63 110,69 C106,75 108,82 104,87 C100,92 93,91 88,96 C83,101 84,108 79,112 C74,116 67,114 64,120 C61,114 54,116 49,112 C44,108 45,101 40,96 C35,91 28,92 24,87 C20,82 22,75 18,69 C14,63 8,64 8,64 C8,64 14,65 18,59 C22,53 20,46 24,41 C28,36 35,37 40,32 C45,27 44,20 49,16 C54,12 61,14 64,8 Z" />
+
+        <!-- Inner Rosette Accent Petals -->
+        <path
+            android:fillColor="#FFF1CC"
+            android:pathData="M64,14 C70,20 78,20 84,24 C90,28 92,36 97,42 C102,48 108,50 110,58 C112,66 108,72 108,72 C108,72 102,78 97,86 C92,92 90,100 84,104 C78,108 70,108 64,114 C58,108 50,108 44,104 C38,100 36,92 31,86 C26,78 20,72 20,72 C20,72 16,66 18,58 C20,50 26,48 31,42 C36,36 38,28 44,24 C50,20 58,20 64,14 Z" />
+
+        <!-- Blue Flower Petal Jewels / Accents -->
+        <path
+            android:fillColor="#3B82F6"
+            android:pathData="M64,13 A2,2 0 1,1 64,17 A2,2 0 1,1 64,13 M64,111 A2,2 0 1,1 64,115 A2,2 0 1,1 64,111 M15,64 A2,2 0 1,1 15,68 A2,2 0 1,1 15,64 M113,64 A2,2 0 1,1 113,68 A2,2 0 1,1 113,64 M29,29 A2,2 0 1,1 29,33 A2,2 0 1,1 29,29 M99,29 A2,2 0 1,1 99,33 A2,2 0 1,1 99,29 M29,99 A2,2 0 1,1 29,103 A2,2 0 1,1 29,99 M99,99 A2,2 0 1,1 99,103 A2,2 0 1,1 99,99 M44,19 A1.8,1.8 0 1,1 44,22.6 A1.8,1.8 0 1,1 44,19 M84,19 A1.8,1.8 0 1,1 84,22.6 A1.8,1.8 0 1,1 84,19 M44,109 A1.8,1.8 0 1,1 44,112.6 A1.8,1.8 0 1,1 44,109 M84,109 A1.8,1.8 0 1,1 84,112.6 A1.8,1.8 0 1,1 84,109 M19,44 A1.8,1.8 0 1,1 19,47.6 A1.8,1.8 0 1,1 19,44 M19,84 A1.8,1.8 0 1,1 19,87.6 A1.8,1.8 0 1,1 19,84 M109,44 A1.8,1.8 0 1,1 109,47.6 A1.8,1.8 0 1,1 109,44 M109,84 A1.8,1.8 0 1,1 109,87.6 A1.8,1.8 0 1,1 109,84" />
+
+        <!-- Outer Black Border Ring -->
+        <path
+            android:strokeColor="#1A1A1A"
+            android:strokeWidth="1.8"
+            android:fillColor="#00000000"
+            android:pathData="M64,24 A40,40 0 1,1 64,104 A40,40 0 1,1 64,24" />
+
+        <!-- Gold Medallion Ring -->
+        <path
+            android:strokeColor="#C59B27"
+            android:strokeWidth="3.2"
+            android:fillColor="#00000000"
+            android:pathData="M64,26.5 A37.5,37.5 0 1,1 64,101.5 A37.5,37.5 0 1,1 64,26.5" />
+
+        <!-- Thin Inner Black Ring -->
+        <path
+            android:strokeColor="#222222"
+            android:strokeWidth="1"
+            android:fillColor="#00000000"
+            android:pathData="M64,29 A35,35 0 1,1 64,99 A35,35 0 1,1 64,29" />
+
+        <!-- Cream / Light Ivory Center Disc -->
+        <path
+            android:fillColor="#FCF6E5"
+            android:pathData="M64,30 A34,34 0 1,1 64,98 A34,34 0 1,1 64,30" />
+
+        <!-- Arabic Calligraphy "القرآن الكريم" in Classic Thuluth / Black Ink -->
+        <path
+            android:fillColor="#111111"
+            android:pathData="M92,48 C92,42 91,37 88.5,37 C87,37 86.5,41 86.5,46 L86.5,75 C86.5,80 85,82 81,82 C77,82 75.5,78 75.5,73 L75.5,42 C75.5,37 74.5,36 73,36 C71.5,36 71,39 71,45 L71,68 C71,73 69,76 65,76 C61,76 59.5,72 59.5,65 L59.5,40 C59.5,35 58.5,34 57,34 C55.5,34 55,38 55,44 L55,60 Z" />
+
+        <path
+            android:fillColor="#111111"
+            android:pathData="M54,48 C51,44 45,43 41,46 C37,49 36,54 39,58 C42,62 48,61 52,58 L68,52 C73,50 78,56 74,62 C70,68 60,73 53,79 C46,85 41,92 48,94 C55,96 64,90 71,84 C73,82 76,84 74,87 C66,95 54,101 43,98 C33,95 36,83 44,75 C51,68 62,63 65,58 C67,55 64,52 60,53 L45,58 C38,60 32,54 34,47 C36,40 43,38 50,42 Z" />
+
+        <path
+            android:fillColor="#111111"
+            android:pathData="M68,36 C64,38 50,45 44,48 C41,49.5 40,48 42,46 C48,42 61,35 67,33 C69,32.5 70,34.5 68,36 Z" />
+        <path
+            android:fillColor="#111111"
+            android:pathData="M78,45 C78,41 83,43 83,48 C83,55 77,60 72,64 C68,67 64,72 63,78 C62,84 64,88 67,90 C69,91 68,93 65,93 C60,93 57,86 58,79 C59,71 64,66 69,62 C73,58 78,53 78,45 Z" />
+
+        <path
+            android:fillColor="#111111"
+            android:pathData="M52,38 A2,2 0 1,1 52,42 A2,2 0 1,1 52,38 M47,36 A2,2 0 1,1 47,40 A2,2 0 1,1 47,36" />
+        <path
+            android:fillColor="#111111"
+            android:pathData="M57,85 A2,2 0 1,1 57,89 A2,2 0 1,1 57,85 M51,87 A2,2 0 1,1 51,91 A2,2 0 1,1 51,87" />
+        <path
+            android:fillColor="#111111"
+            android:pathData="M76,38 C79,35 83,36 81,38 C79,40 75,41 76,38 Z M62,34 C65,32 68,33 66,35 C64,37 61,36 62,34 Z M38,64 C41,63 43,65 41,67 C39,69 37,66 38,64 Z M83,67 C86,65 88,67 86,70 C84,72 82,69 83,67 Z" />
+    </group>
+</vector>

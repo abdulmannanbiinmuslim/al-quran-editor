@@ -12,6 +12,7 @@ import com.example.data.reminder.DailyReminderManager
 import com.example.data.repository.QuranData
 import com.example.data.repository.RecitersData
 import com.example.data.repository.TopicsData
+import com.example.ui.theme.QuranTypography
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -152,8 +153,15 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     private val _lastReadList = MutableStateFlow(
         listOf(
             LibraryItem("lr1", 1, 1, "Al-Fatihah", "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ", "শুরু করছি আল্লাহর নামে...", type = LibraryType.LAST_READ),
-            LibraryItem("lr2", 2, 1, "Al-Baqarah", "الم ۝ ذَٰلِكَ ٱلْكِتَٰبُ", "আলিফ-লাম-মীম...", type = LibraryType.LAST_READ),
-            LibraryItem("lr3", 7, 1, "Al-A'raf", "الٓمصٓ", "আলিফ-লাম-মীম-সোয়াদ...", type = LibraryType.LAST_READ)
+            LibraryItem("lr2", 36, 1, "Ya-Sin", "يس ۝ وَٱلْقُرْءَانِ ٱلْحَكِيمِ", "ইয়াসীন। শপথ প্রজ্ঞাময় কুরআনের...", type = LibraryType.LAST_READ),
+            LibraryItem("lr3", 67, 1, "Al-Mulk", "تَبَٰرَكَ ٱلَّذِى بِيَدِهِ ٱلْمُلْكُ", "বরকতময় তিনি যাঁর হাতে রাজত্ব...", type = LibraryType.LAST_READ),
+            LibraryItem("lr4", 18, 1, "Al-Kahf", "ٱلْحَمْدُ لِلَّهِ ٱلَّذِىٓ أَنزَلَ عَلَىٰ عَبْدِهِ ٱلْكِتَٰبَ", "সমস্ত প্রশংসা আল্লাহর যিনি তাঁর বান্দার প্রতি কিতাব অবতীর্ণ করেছেন...", type = LibraryType.LAST_READ),
+            LibraryItem("lr5", 55, 1, "Ar-Rahman", "ٱلرَّحْمَٰنُ ۝ عَلَّمَ ٱلْقُرْءَانَ", "পরম দয়াময়, তিনি কুরআন শিক্ষা দিয়েছেন...", type = LibraryType.LAST_READ),
+            LibraryItem("lr6", 56, 1, "Al-Waqi'ah", "إِذَا وَقَعَتِ ٱلْوَاقِعَةُ", "যখন ঘটবে সেই অবশ্যম্ভাবী ঘটনা...", type = LibraryType.LAST_READ),
+            LibraryItem("lr7", 2, 255, "Al-Baqarah", "ٱللَّهُ لَآ إِلَٰهَ إِلَّا هُوَ ٱلْحَىُّ ٱلْقَيُّومُ", "আয়াতুল কুরসী", type = LibraryType.LAST_READ),
+            LibraryItem("lr8", 112, 1, "Al-Ikhlas", "قُلْ هُوَ ٱللَّهُ أَحَدٌ", "বলুন, তিনিই আল্লাহ, এক-একক...", type = LibraryType.LAST_READ),
+            LibraryItem("lr9", 113, 1, "Al-Falaq", "قُلْ أَعُوذُ بِرَبِّ ٱلْفَلَقِ", "বলুন, আমি আশ্রয় প্রার্থনা করছি উষার রবের...", type = LibraryType.LAST_READ),
+            LibraryItem("lr10", 114, 1, "An-Nas", "قُلْ أَعُوذُ بِرَبِّ ٱلنَّاسِ", "বলুন, আমি আশ্রয় প্রার্থনা করছি মানুষের রবের...", type = LibraryType.LAST_READ)
         )
     )
     val lastReadList = _lastReadList.asStateFlow()
@@ -372,6 +380,14 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
         _readingSettings.value = _readingSettings.value.copy(highContrastNightText = enabled)
     }
 
+    fun setScriptType(script: QuranScriptType) {
+        val defaultFont = QuranTypography.getDefaultFontForScript(script)
+        _readingSettings.value = _readingSettings.value.copy(
+            selectedScript = script,
+            selectedFont = defaultFont
+        )
+    }
+
     fun setFontFamily(font: QuranFontFamily) {
         _readingSettings.value = _readingSettings.value.copy(selectedFont = font)
     }
@@ -489,7 +505,7 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                 type = LibraryType.LAST_READ
             )
         )
-        _lastReadList.value = existing
+        _lastReadList.value = existing.take(10)
     }
 
     fun closeReadingMode() {

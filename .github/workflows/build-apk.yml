@@ -97,39 +97,45 @@ jobs:
           mkdir -p release_asset_dir
           REPO_NAME=$(echo "${{ github.repository }}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
           cp app/build/outputs/apk/debug/app-debug.apk "release_asset_dir/app-debug.apk"
-          cp app/build/outputs/apk/debug/app-debug.apk "release_asset_dir/${REPO_NAME}-v${{ github.run_number }}.apk"
-          echo "asset_path=release_asset_dir/*" >> $GITHUB_OUTPUT
+          cp app/build/outputs/apk/debug/app-debug.apk "release_asset_dir/${REPO_NAME}-build-${{ github.run_number }}.apk"
+          ls -la release_asset_dir/
 
       - name: Publish APK to GitHub Releases
         id: publish_release
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           gh --version
-          TAG_NAME="debug-apk-build-${{ github.run_number }}-${{ github.run_attempt }}"
-          RELEASE_TITLE="Debug APK Build #${{ github.run_number }}"
+          TAG_NAME="v${{ github.run_number }}"
+          RELEASE_TITLE="Debug APK Release #${{ github.run_number }}"
           
-          gh release create "$TAG_NAME" \
-            release_asset_dir/app-debug.apk \
-            release_asset_dir/*.apk \
+          # Delete existing tag/release if it exists with same name to avoid collisions
+          gh release delete "$TAG_NAME" --yes || true
+          
+          gh release create "$TAG_NAME" release_asset_dir/* \
             --title "$RELEASE_TITLE" \
             --target "${{ github.sha }}" \
-            --latest \
-            --notes "Direct installable APK build #${{ github.run_number }}. Download app-debug.apk directly without unzipping."
+            --clobber \
+            --notes "Direct installable APK build #${{ github.run_number }}.
+            
+### 📦 Download Links
+- **[app-debug.apk](https://github.com/${{ github.repository }}/releases/download/$TAG_NAME/app-debug.apk)** (Standard Debug APK)
+- **[${REPO_NAME}-build-${{ github.run_number }}.apk](https://github.com/${{ github.repository }}/releases/download/$TAG_NAME/${REPO_NAME}-build-${{ github.run_number }}.apk)**"
 
       - name: Report APK download result
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          TAG_NAME="v${{ github.run_number }}"
           if [ "${{ steps.publish_release.outcome }}" == "success" ]; then
             echo "Release publishing succeeded!"
-            TAG_NAME="debug-apk-build-${{ github.run_number }}-${{ github.run_attempt }}"
-            gh release view "$TAG_NAME"
+            gh release view "$TAG_NAME" || true
             RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME"
             echo "Release Page URL: $RELEASE_URL"
-            echo "The APK can be downloaded from the release Assets section." >> $GITHUB_STEP_SUMMARY
-            echo "The normal Actions artifact (app-debug-apk) is also available as a backup." >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ APK Release Published Successfully!" >> $GITHUB_STEP_SUMMARY
+            echo "The APK is ready for download in [GitHub Releases]($RELEASE_URL)." >> $GITHUB_STEP_SUMMARY
           else
             echo "Warning: Release publishing failed, but the APK build and artifact upload succeeded."
             echo "Warning: GitHub Release publishing failed, but the Actions artifact named app-debug-apk remains safely available." >> $GITHUB_STEP_SUMMARY

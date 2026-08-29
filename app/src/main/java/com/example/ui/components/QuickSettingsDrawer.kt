@@ -35,6 +35,8 @@ fun QuickSettingsModalSheet(
     onOpenTajweedGuide: () -> Unit,
     onOpenFontSettings: () -> Unit = {},
     onOpenThemeSelector: () -> Unit = {},
+    onOpenMainSettings: () -> Unit = {},
+    onOpenAudioManager: () -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -551,7 +553,41 @@ fun QuickSettingsModalSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Quick Navigation Shortcuts to Audio Manager & Main Settings
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        onDismiss()
+                        onOpenAudioManager()
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = IslamicEmeraldPrimary)
+                ) {
+                    Icon(Icons.Default.Headphones, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Audio Manager", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Button(
+                    onClick = {
+                        onDismiss()
+                        onOpenMainSettings()
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary)
+                ) {
+                    Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Main Settings", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
         }
     }
 }

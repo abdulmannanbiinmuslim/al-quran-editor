@@ -43,7 +43,7 @@ import com.example.ui.screens.home.HomeScreen
 import com.example.ui.screens.library.LibraryScreen
 import com.example.ui.screens.planner.PlannerScreen
 import com.example.ui.screens.reading.QuranReadingScreen
-import com.example.ui.screens.reciters.DownloadManagerDialog
+import com.example.ui.screens.reciters.SurahDownloadScreen
 import com.example.ui.screens.reciters.ReciterSelectorScreen
 import com.example.ui.screens.stats.StatsScreen
 import com.example.ui.screens.topics.TopicsScreen
@@ -104,6 +104,8 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
     val isPlayerBottomSheetOpen by viewModel.isPlayerBottomSheetOpen.collectAsStateWithLifecycle()
     val isTimingGeneratorOpen by viewModel.isTimingGeneratorOpen.collectAsStateWithLifecycle()
     val isFontSettingsOpen by viewModel.isFontSettingsOpen.collectAsStateWithLifecycle()
+    val isMainSettingsOpen by viewModel.isMainSettingsOpen.collectAsStateWithLifecycle()
+    val isAudioManagerOpen by viewModel.isAudioManagerOpen.collectAsStateWithLifecycle()
     val isThemeSelectorOpen by viewModel.isThemeSelectorOpen.collectAsStateWithLifecycle()
     val isDownloadManagerOpen by viewModel.isDownloadManagerOpen.collectAsStateWithLifecycle()
     val selectedReciterForDownload by viewModel.selectedReciterForDownload.collectAsStateWithLifecycle()
@@ -161,11 +163,15 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                 onItemClick = { itemId ->
                     scope.launch { drawerState.close() }
                     when (itemId) {
+                        "audio_manager" -> viewModel.setAudioManagerOpen(true)
+                        "main_settings" -> viewModel.setMainSettingsOpen(true)
+                        "quick_settings" -> viewModel.setQuickSettingsOpen(true)
                         "theme_night_mode" -> viewModel.setThemeSelectorOpen(true)
                         "jump_to_ayah" -> viewModel.setJumpToAyahOpen(true)
                         "font_studio" -> viewModel.setFontSettingsOpen(true)
                         "timing_sync" -> viewModel.setTimingGeneratorOpen(true)
-                        "settings" -> viewModel.setQuickSettingsOpen(true)
+                        "settings" -> viewModel.setMainSettingsOpen(true)
+                        "reciter_player" -> viewModel.setReciterSelectorOpen(true)
                         "view_tutorials" -> viewModel.setTajweedGuideOpen(true)
                         "share_app" -> {
                             val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -202,6 +208,8 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                         isNightMode = readingSettings.nightModeOption == com.example.data.model.NightModeOption.NIGHT || readingSettings.nightModeOption == com.example.data.model.NightModeOption.OLED_BLACK,
                         onToggleNightMode = { viewModel.toggleNightMode() },
                         onOpenThemeSelector = { viewModel.setThemeSelectorOpen(true) },
+                        onOpenAudioManager = { viewModel.setAudioManagerOpen(true) },
+                        onOpenMainSettings = { viewModel.setMainSettingsOpen(true) },
                         onSearchQueryChange = { viewModel.setSearchQuery(it) },
                         onSearchToggle = { viewModel.setSearchActive(!isSearchActive) },
                         onTitleClick = { viewModel.setJumpToAyahOpen(true) },
@@ -444,11 +452,15 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
             onDismiss = { isFloatingMenuOpen = false },
             onItemClick = { itemId ->
                 when (itemId) {
+                    "download_manager" -> viewModel.setDownloadManagerOpen(true)
+                    "audio_manager" -> viewModel.setAudioManagerOpen(true)
+                    "main_settings" -> viewModel.setMainSettingsOpen(true)
+                    "quick_settings" -> viewModel.setQuickSettingsOpen(true)
                     "theme_night_mode" -> viewModel.setThemeSelectorOpen(true)
                     "jump_to_ayah" -> viewModel.setJumpToAyahOpen(true)
                     "font_studio" -> viewModel.setFontSettingsOpen(true)
                     "timing_sync" -> viewModel.setTimingGeneratorOpen(true)
-                    "settings" -> viewModel.setQuickSettingsOpen(true)
+                    "settings" -> viewModel.setMainSettingsOpen(true)
                     "view_tutorials" -> viewModel.setTajweedGuideOpen(true)
                     "reciter_player" -> viewModel.setReciterSelectorOpen(true)
                     "dictionary" -> viewModel.setTab(2)
@@ -572,7 +584,67 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                 viewModel.setQuickSettingsOpen(false)
                 viewModel.setThemeSelectorOpen(true)
             },
+            onOpenMainSettings = {
+                viewModel.setQuickSettingsOpen(false)
+                viewModel.setMainSettingsOpen(true)
+            },
+            onOpenAudioManager = {
+                viewModel.setQuickSettingsOpen(false)
+                viewModel.setAudioManagerOpen(true)
+            },
             onDismiss = { viewModel.setQuickSettingsOpen(false) }
+        )
+    }
+
+    // Full Main Settings Sheet (Page)
+    if (isMainSettingsOpen) {
+        MainSettingsSheet(
+            settings = readingSettings,
+            onSettingsChange = { newSettings -> viewModel.updateSettings { newSettings } },
+            onOpenAudioManager = {
+                viewModel.setMainSettingsOpen(false)
+                viewModel.setAudioManagerOpen(true)
+            },
+            onOpenFontStudio = {
+                viewModel.setMainSettingsOpen(false)
+                viewModel.setFontSettingsOpen(true)
+            },
+            onOpenTajweedGuide = {
+                viewModel.setMainSettingsOpen(false)
+                viewModel.setTajweedGuideOpen(true)
+            },
+            onOpenThemeSelector = {
+                viewModel.setMainSettingsOpen(false)
+                viewModel.setThemeSelectorOpen(true)
+            },
+            onSyncWithCloud = { viewModel.syncWithFirestore() },
+            onDismiss = { viewModel.setMainSettingsOpen(false) }
+        )
+    }
+
+    // Full Audio Manager Sheet
+    if (isAudioManagerOpen) {
+        AudioManagerSheet(
+            audioState = audioState,
+            onSelectReciter = { reciter ->
+                viewModel.audioPlayer.playSingleAyah(
+                    currentSurah.number,
+                    currentAyahs.firstOrNull() ?: com.example.data.repository.QuranData.fatihahAyahs[0],
+                    reciter
+                )
+            },
+            onPlayPauseToggle = { viewModel.audioPlayer.togglePlayPause() },
+            onSeekTo = { viewModel.audioPlayer.seekTo(it) },
+            onSpeedChange = { viewModel.audioPlayer.setSpeed(it) },
+            onRepeatCountChange = { viewModel.audioPlayer.setRepeatAyahTimes(it) },
+            onOpenDownloadManager = { reciter ->
+                viewModel.setDownloadManagerOpen(true, reciter)
+            },
+            onOpenTimingGenerator = {
+                viewModel.setAudioManagerOpen(false)
+                viewModel.setTimingGeneratorOpen(true)
+            },
+            onDismiss = { viewModel.setAudioManagerOpen(false) }
         )
     }
 
@@ -800,10 +872,14 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
         )
     }
 
-    // Download Manager Dialog
+    // Surah Download Page / Download Manager
     if (isDownloadManagerOpen && selectedReciterForDownload != null) {
-        DownloadManagerDialog(
+        SurahDownloadScreen(
             reciter = selectedReciterForDownload!!,
+            downloadManager = viewModel.downloadManager,
+            onSelectReciter = { reciter ->
+                viewModel.setDownloadManagerOpen(true, reciter)
+            },
             onDismiss = { viewModel.setDownloadManagerOpen(false) }
         )
     }

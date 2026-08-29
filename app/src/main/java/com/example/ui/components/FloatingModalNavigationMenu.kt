@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.CloudUpload
@@ -153,6 +154,10 @@ fun FloatingModalNavigationMenuContent(
             DrawerMenuItem("bookmarks", "Bookmarks & Folders", "সংরক্ষিত আয়াতসমূহ", Icons.Outlined.BookmarkBorder, section = "প্রধান বৈশিষ্ট্যসমূহ"),
 
             // Section 2: Studio & Customization
+            DrawerMenuItem("download_manager", "Surah Download Page", "সূরা ও আয়াত ভিত্তিক অফলাইন ডাউনলোড", Icons.Default.Download, section = "কাস্টমাইজেশন ও অডিও", iconTint = Color(0xFF1E563F)),
+            DrawerMenuItem("audio_manager", "Audio Manager", "ক্বারী, অফলাইন ডাউনলোড ও স্পিড", Icons.Outlined.Headphones, section = "কাস্টমাইজেশন ও অডিও", iconTint = Color(0xFF1E563F)),
+            DrawerMenuItem("main_settings", "Main Setting Page", "কুরআন ও অ্যাপের পূর্ণাঙ্গ সেটিংস", Icons.Outlined.Settings, section = "কাস্টমাইজেশন ও অডিও", iconTint = Color(0xFF1E563F)),
+            DrawerMenuItem("quick_settings", "Reading Quick Settings", "দ্রুত ড্রয়ার ও রিডিং প্রেফারেন্স", Icons.Outlined.Settings, section = "কাস্টমাইজেশন ও অডিও"),
             DrawerMenuItem("theme_night_mode", "Theme & Night Mode", "ডার্ক/লাইট ও গোল্ডেন থিম", Icons.Outlined.Palette, section = "কাস্টমাইজেশন ও অডিও"),
             DrawerMenuItem("font_studio", "Arabic Font & Tajweed", "ফন্ট সাইজ ও তাজবীদ কালার", Icons.Outlined.TextFields, section = "কাস্টমাইজেশন ও অডিও"),
             DrawerMenuItem("reciter_player", "Reciter Audio Station", "বিশ্ববিখ্যাত ক্বারীদের তিলাওয়াত", Icons.Outlined.Headphones, section = "কাস্টমাইজেশন ও অডিও"),
@@ -161,7 +166,7 @@ fun FloatingModalNavigationMenuContent(
             DrawerMenuItem("cloud_sync", "Cloud Backup & Sync", "ফায়ারবেস ক্লাউড ব্যাকআপ", Icons.Outlined.CloudUpload, section = "কাস্টমাইজেশন ও অডিও"),
 
             // Section 3: Settings & Community
-            DrawerMenuItem("settings", "Settings", "সাধারণ রিডিং সেটিংস", Icons.Outlined.Settings, section = "অন্যান্য ও সেটিংস"),
+            DrawerMenuItem("settings", "All Settings", "সাধারণ রিডিং সেটিংস", Icons.Outlined.Settings, section = "অন্যান্য ও সেটিংস"),
             DrawerMenuItem("other_apps", "Our Other Apps", "হাদিস ও দোয়ার অন্যান্য অ্যাপস", Icons.Outlined.PhoneAndroid, section = "অন্যান্য ও সেটিংস"),
             DrawerMenuItem("rate_app", "Rate App!", "৫ স্টার রিভিউ দিন", Icons.Outlined.StarOutline, section = "অন্যান্য ও সেটিংস"),
             DrawerMenuItem("talk_with_us", "Talk with Us", "আমাদের সাথে সরাসরি যোগাযোগ", Icons.Outlined.ChatBubbleOutline, section = "অন্যান্য ও সেটিংস"),

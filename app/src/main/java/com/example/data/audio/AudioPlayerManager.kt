@@ -34,6 +34,7 @@ data class AudioPlayerState(
 )
 
 class AudioPlayerManager(private val context: Context) {
+    val downloadManager = QuranDownloadManager(context)
     private var mediaPlayer: MediaPlayer? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var progressJob: Job? = null
@@ -158,6 +159,10 @@ class AudioPlayerManager(private val context: Context) {
         applyPlaybackSpeed()
     }
 
+    fun setSpeed(speed: Float) {
+        setPlaybackSpeed(speed)
+    }
+
     fun setRepeatAyahTimes(count: Int) {
         _playerState.value = _playerState.value.copy(
             repeatAyahTimes = count,
@@ -228,7 +233,12 @@ class AudioPlayerManager(private val context: Context) {
 
         val ayah = playlistAyahs[currentPlaylistIndex]
         val reciter = _playerState.value.currentReciter
-        val audioUrl = RecitersData.getAudioUrl(reciter, ayah.surahNumber, ayah.ayahNumberInSurah)
+        val localFile = downloadManager.getLocalAudioFile(reciter, ayah.surahNumber, ayah.ayahNumberInSurah)
+        val audioSource = if (localFile != null && localFile.exists() && localFile.length() > 512) {
+            localFile.absolutePath
+        } else {
+            RecitersData.getAudioUrl(reciter, ayah.surahNumber, ayah.ayahNumberInSurah)
+        }
 
         _playerState.value = _playerState.value.copy(
             currentAyahNumber = ayah.ayahNumberInSurah,
@@ -255,12 +265,12 @@ class AudioPlayerManager(private val context: Context) {
                             .setUsage(AudioAttributes.USAGE_MEDIA)
                             .build()
                     )
-                    mp.setDataSource(audioUrl)
+                    mp.setDataSource(audioSource)
                     mp.prepareAsync()
                 } catch (e: Exception) {
                     Log.e("AudioPlayerManager", "Failed to setup audio source: ${e.message}")
                     setupMediaPlayer()
-                    mediaPlayer?.setDataSource(audioUrl)
+                    mediaPlayer?.setDataSource(audioSource)
                     mediaPlayer?.prepareAsync()
                 }
             }

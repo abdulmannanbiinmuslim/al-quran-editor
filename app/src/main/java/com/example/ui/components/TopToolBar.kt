@@ -31,6 +31,8 @@ fun TopToolBar(
     isNightMode: Boolean = false,
     onToggleNightMode: () -> Unit = {},
     onOpenThemeSelector: () -> Unit = {},
+    onOpenAudioManager: () -> Unit = {},
+    onOpenMainSettings: () -> Unit = {},
     onSearchQueryChange: (String) -> Unit,
     onSearchToggle: () -> Unit,
     onTitleClick: () -> Unit,
@@ -98,23 +100,23 @@ fun TopToolBar(
                     }
                 }
 
-                // Right Action Buttons: Streak, Night Mode Toggle, Theme Palette, Search
+                // Right Action Buttons: Audio Manager, Theme, Night Mode, Settings, Search
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    horizontalArrangement = Arrangement.spacedBy(1.dp)
                 ) {
-                    // Global Theme Palette Button
+                    // Audio Manager Button
                     IconButton(
-                        onClick = onOpenThemeSelector,
+                        onClick = onOpenAudioManager,
                         modifier = Modifier
-                            .size(38.dp)
-                            .testTag("toolbar_theme_button")
+                            .size(36.dp)
+                            .testTag("toolbar_audio_manager_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Palette,
-                            contentDescription = "Change Theme",
+                            imageVector = Icons.Outlined.Headphones,
+                            contentDescription = "Audio Manager",
                             tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
 
@@ -122,14 +124,29 @@ fun TopToolBar(
                     IconButton(
                         onClick = onToggleNightMode,
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(36.dp)
                             .testTag("toolbar_night_mode_button")
                     ) {
                         Icon(
                             imageVector = if (isNightMode) Icons.Default.LightMode else Icons.Default.DarkMode,
                             contentDescription = if (isNightMode) "Switch to Light Mode" else "Switch to Night Mode",
                             tint = if (isNightMode) QuranGold else Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+
+                    // Main Settings Button
+                    IconButton(
+                        onClick = onOpenMainSettings,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .testTag("toolbar_settings_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Settings,
+                            contentDescription = "Settings",
+                            tint = Color.White,
+                            modifier = Modifier.size(19.dp)
                         )
                     }
 
@@ -137,14 +154,14 @@ fun TopToolBar(
                     IconButton(
                         onClick = onSearchToggle,
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(36.dp)
                             .testTag("toolbar_search_button")
                     ) {
                         Icon(
                             imageVector = if (isSearchActive) Icons.Default.Close else Icons.Default.Search,
                             contentDescription = "Search",
                             tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
                 }

@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 class QuranViewModel(application: Application) : AndroidViewModel(application) {
 
     val audioPlayer = AudioPlayerManager(application)
+    val downloadManager = audioPlayer.downloadManager
     val authService = FirebaseAuthService(application)
     val firestoreService = QuranFirestoreSyncService(application)
 
@@ -104,6 +105,12 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _isFontSettingsOpen = MutableStateFlow(false)
     val isFontSettingsOpen = _isFontSettingsOpen.asStateFlow()
+
+    private val _isMainSettingsOpen = MutableStateFlow(false)
+    val isMainSettingsOpen = _isMainSettingsOpen.asStateFlow()
+
+    private val _isAudioManagerOpen = MutableStateFlow(false)
+    val isAudioManagerOpen = _isAudioManagerOpen.asStateFlow()
 
     private val _isThemeSelectorOpen = MutableStateFlow(false)
     val isThemeSelectorOpen = _isThemeSelectorOpen.asStateFlow()
@@ -353,6 +360,14 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
         _isFontSettingsOpen.value = open
     }
 
+    fun setMainSettingsOpen(open: Boolean) {
+        _isMainSettingsOpen.value = open
+    }
+
+    fun setAudioManagerOpen(open: Boolean) {
+        _isAudioManagerOpen.value = open
+    }
+
     fun setThemeSelectorOpen(open: Boolean) {
         _isThemeSelectorOpen.value = open
     }
@@ -478,7 +493,11 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setDownloadManagerOpen(open: Boolean, reciter: ReciterItem? = null) {
-        selectedReciterForDownload.value = reciter
+        val target = reciter ?: selectedReciterForDownload.value ?: audioPlayer.playerState.value.currentReciter
+        selectedReciterForDownload.value = target
+        if (open) {
+            downloadManager.refreshStatuses(target)
+        }
         _isDownloadManagerOpen.value = open
     }
 

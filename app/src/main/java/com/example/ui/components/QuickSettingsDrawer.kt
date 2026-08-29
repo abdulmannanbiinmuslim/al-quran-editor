@@ -64,12 +64,11 @@ fun QuickSettingsModalSheet(
                 .clickable { onDismiss() },
             contentAlignment = Alignment.CenterEnd
         ) {
-            // Right Navigation Drawer Card touching absolute top and bottom with rounded left corners (flush to right screen edge)
+            // Right Navigation Drawer Card touching absolute top and bottom with rounded left corners (compact width)
             Surface(
                 modifier = modifier
-                    .padding(start = 64.dp, top = 0.dp, bottom = 0.dp, end = 0.dp)
-                    .fillMaxWidth()
                     .fillMaxHeight()
+                    .width(260.dp)
                     .clickable(enabled = false) {} // Prevent dismiss when tapping inside card
                     .shadow(
                         elevation = 24.dp,

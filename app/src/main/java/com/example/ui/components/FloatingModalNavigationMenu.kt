@@ -106,12 +106,11 @@ fun FloatingModalNavigationMenu(
                 .clickable { onDismiss() },
             contentAlignment = Alignment.CenterStart
         ) {
-            // Left Navigation Drawer Card touching absolute top and bottom with rounded right corners (flush to left screen edge)
+            // Left Navigation Drawer Card touching absolute top and bottom with rounded right corners (compact width)
             Surface(
                 modifier = modifier
-                    .padding(start = 0.dp, top = 0.dp, bottom = 0.dp, end = 64.dp)
-                    .fillMaxWidth()
                     .fillMaxHeight()
+                    .width(260.dp)
                     .clickable(enabled = false) {} // Prevent dismiss when tapping inside card
                     .shadow(
                         elevation = 24.dp,

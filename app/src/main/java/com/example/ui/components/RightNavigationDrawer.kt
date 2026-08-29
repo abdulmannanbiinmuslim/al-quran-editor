@@ -20,7 +20,7 @@ fun RightNavigationDrawerContent(
         shape = RoundedCornerShape(0.dp),
         modifier = modifier
             .fillMaxHeight()
-            .width(300.dp)
+            .width(260.dp)
     ) {
         FloatingModalNavigationMenuContent(
             onDismiss = {},

@@ -17,10 +17,10 @@ fun RightNavigationDrawerContent(
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp),
+        shape = RoundedCornerShape(0.dp),
         modifier = modifier
             .fillMaxHeight()
-            .width(295.dp)
+            .width(300.dp)
     ) {
         FloatingModalNavigationMenuContent(
             onDismiss = {},

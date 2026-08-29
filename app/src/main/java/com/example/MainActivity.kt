@@ -62,9 +62,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val readingSettings by viewModel.readingSettings.collectAsStateWithLifecycle()
+            val selectedFontFamily by viewModel.selectedFontFamily.collectAsStateWithLifecycle()
             AlQuranEditorTheme(
                 theme = readingSettings.appColorTheme,
-                nightModeOption = readingSettings.nightModeOption
+                nightModeOption = readingSettings.nightModeOption,
+                selectedFont = readingSettings.selectedFont,
+                fontFamily = selectedFontFamily
             ) {
                 QuranAppRoot(viewModel = viewModel)
             }

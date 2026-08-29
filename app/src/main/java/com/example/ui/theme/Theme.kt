@@ -15,8 +15,11 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.sp
 import com.example.data.model.AppColorTheme
 import com.example.data.model.NightModeOption
+import com.example.data.model.QuranFontFamily
 
 @Immutable
 data class ExtendedThemeColors(
@@ -38,6 +41,62 @@ val LocalExtendedTheme = staticCompositionLocalOf {
         primaryHeaderGradient = Brush.linearGradient(listOf(EmeraldPrimaryDark, EmeraldPrimaryLight)),
         ayahHighlightBackground = EmeraldPrimaryContainerLight.copy(alpha = 0.45f),
         ayahBorderColor = EmeraldPrimaryLight.copy(alpha = 0.25f)
+    )
+}
+
+val LocalQuranFontFamily = staticCompositionLocalOf<FontFamily> {
+    QuranTypography.getFontFamily(QuranFontFamily.UTHMANIC_HAFS)
+}
+
+val LocalQuranFont = staticCompositionLocalOf<QuranFontFamily> {
+    QuranFontFamily.UTHMANIC_HAFS
+}
+
+fun createDynamicTypography(fontFamily: FontFamily = FontFamily.Default): androidx.compose.material3.Typography {
+    return androidx.compose.material3.Typography(
+        displayLarge = androidx.compose.ui.text.TextStyle(
+            fontFamily = fontFamily,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            fontSize = 28.sp,
+            lineHeight = 36.sp
+        ),
+        titleLarge = androidx.compose.ui.text.TextStyle(
+            fontFamily = fontFamily,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            fontSize = 20.sp,
+            lineHeight = 28.sp
+        ),
+        titleMedium = androidx.compose.ui.text.TextStyle(
+            fontFamily = fontFamily,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            fontSize = 16.sp,
+            lineHeight = 24.sp
+        ),
+        bodyLarge = androidx.compose.ui.text.TextStyle(
+            fontFamily = fontFamily,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Normal,
+            fontSize = 16.sp,
+            lineHeight = 24.sp,
+            letterSpacing = 0.4.sp
+        ),
+        bodyMedium = androidx.compose.ui.text.TextStyle(
+            fontFamily = fontFamily,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Normal,
+            fontSize = 14.sp,
+            lineHeight = 20.sp
+        ),
+        labelLarge = androidx.compose.ui.text.TextStyle(
+            fontFamily = fontFamily,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+            fontSize = 14.sp,
+            lineHeight = 20.sp
+        ),
+        labelSmall = androidx.compose.ui.text.TextStyle(
+            fontFamily = fontFamily,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+            fontSize = 11.sp,
+            lineHeight = 14.sp
+        )
     )
 }
 
@@ -258,6 +317,8 @@ fun AlQuranEditorTheme(
     theme: AppColorTheme = AppColorTheme.EMERALD,
     nightModeOption: NightModeOption = NightModeOption.LIGHT,
     dynamicColor: Boolean = false,
+    selectedFont: QuranFontFamily = QuranFontFamily.UTHMANIC_HAFS,
+    fontFamily: FontFamily? = null,
     content: @Composable () -> Unit
 ) {
     val isSystemDark = isSystemInDarkTheme()
@@ -302,6 +363,9 @@ fun AlQuranEditorTheme(
     val highlightBg = colorScheme.primaryContainer.copy(alpha = if (isDark) 0.35f else 0.45f)
     val borderCol = colorScheme.primary.copy(alpha = if (isDark) 0.35f else 0.25f)
 
+    val resolvedFontFamily = fontFamily ?: QuranTypography.getFontFamily(selectedFont)
+    val dynamicTypography = createDynamicTypography(resolvedFontFamily)
+
     val extendedTheme = ExtendedThemeColors(
         theme = theme,
         isNightMode = isDark,
@@ -311,21 +375,57 @@ fun AlQuranEditorTheme(
         ayahBorderColor = borderCol
     )
 
-    CompositionLocalProvider(LocalExtendedTheme provides extendedTheme) {
+    CompositionLocalProvider(
+        LocalExtendedTheme provides extendedTheme,
+        LocalQuranFont provides selectedFont,
+        LocalQuranFontFamily provides resolvedFontFamily
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = Typography,
+            typography = dynamicTypography,
             content = content
         )
     }
+}
+
+/**
+ * Dynamic theme wrapper that binds theme colors, dark/light modes,
+ * and dynamic typography according to the chosen Quran font family state.
+ */
+@Composable
+fun QuranDynamicThemeWrapper(
+    theme: AppColorTheme = AppColorTheme.EMERALD,
+    nightModeOption: NightModeOption = NightModeOption.LIGHT,
+    selectedFont: QuranFontFamily = QuranFontFamily.UTHMANIC_HAFS,
+    fontFamily: FontFamily? = null,
+    dynamicColor: Boolean = false,
+    content: @Composable () -> Unit
+) {
+    AlQuranEditorTheme(
+        theme = theme,
+        nightModeOption = nightModeOption,
+        dynamicColor = dynamicColor,
+        selectedFont = selectedFont,
+        fontFamily = fontFamily,
+        content = content
+    )
 }
 
 @Composable
 fun MyApplicationTheme(
     theme: AppColorTheme = AppColorTheme.EMERALD,
     nightModeOption: NightModeOption = NightModeOption.LIGHT,
+    selectedFont: QuranFontFamily = QuranFontFamily.UTHMANIC_HAFS,
+    fontFamily: FontFamily? = null,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    AlQuranEditorTheme(theme, nightModeOption, dynamicColor, content)
+    AlQuranEditorTheme(
+        theme = theme,
+        nightModeOption = nightModeOption,
+        dynamicColor = dynamicColor,
+        selectedFont = selectedFont,
+        fontFamily = fontFamily,
+        content = content
+    )
 }

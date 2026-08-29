@@ -51,8 +51,17 @@ fun ArabicFontSettingsBottomSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var selectedCategoryIndex by remember { mutableStateOf(0) }
-    var selectedPreviewAyahIndex by remember { mutableStateOf(0) }
+    // Local staging state for real-time live preview before applying to reader
+    var previewFont by remember(settings.selectedFont) { mutableStateOf(settings.selectedFont) }
+    var previewScript by remember(settings.selectedScript) { mutableStateOf(settings.selectedScript) }
+    var previewFontSize by remember(settings.arabicFontSizeSp) { mutableFloatStateOf(settings.arabicFontSizeSp) }
+    var previewLineHeight by remember(settings.arabicLineHeightMultiplier) { mutableFloatStateOf(settings.arabicLineHeightMultiplier) }
+    var previewLetterSpacing by remember(settings.arabicLetterSpacingSp) { mutableFloatStateOf(settings.arabicLetterSpacingSp) }
+    var previewFontWeight by remember(settings.arabicFontWeight) { mutableStateOf(settings.arabicFontWeight) }
+
+    var selectedCategoryIndex by remember { mutableIntStateOf(0) }
+    var selectedPreviewAyahIndex by remember { mutableIntStateOf(0) }
+    var hasAppliedFeedback by remember { mutableStateOf(false) }
 
     val sampleVerses = listOf(
         Pair("Al-Fatihah 1:1-2", "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ۝١ ٱلْحَمْدُ لِلَّهِ رَبِّ ٱلْعَٰلَمِينَ ۝٢"),
@@ -61,15 +70,27 @@ fun ArabicFontSettingsBottomSheet(
         Pair("Al-Kahf 18:1", "ٱلْحَمْدُ لِلَّهِ ٱلَّذِىٓ أَنزَلَ عَلَىٰ عَبْدِهِ ٱلْكِتَٰبَ وَلَمْ يَجْعَل لَّهُۥ عِوَجَا ۝")
     )
 
-    val currentFontDetail = QuranTypography.getFontDetail(settings.selectedFont)
+    val currentFontDetail = QuranTypography.getFontDetail(previewFont)
 
-    val filteredFonts = remember(selectedCategoryIndex, settings.selectedScript) {
+    val filteredFonts = remember(selectedCategoryIndex, previewScript) {
         when (selectedCategoryIndex) {
             1 -> QuranTypography.availableFonts.filter { it.category == QuranFontCategory.UTHMANIC_MADANI }
             2 -> QuranTypography.availableFonts.filter { it.category == QuranFontCategory.INDOPAK_NASTALEEQ }
             3 -> QuranTypography.availableFonts.filter { it.category == QuranFontCategory.CALLIGRAPHIC }
             else -> QuranTypography.availableFonts
         }
+    }
+
+    fun applyPreviewToReader() {
+        if (settings.selectedScript != previewScript) {
+            onScriptSelected(previewScript)
+        }
+        onFontSelected(previewFont)
+        onFontSizeChanged(previewFontSize)
+        onLineHeightMultiplierChanged(previewLineHeight)
+        onLetterSpacingChanged(previewLetterSpacing)
+        onFontWeightChanged(previewFontWeight)
+        hasAppliedFeedback = true
     }
 
     ModalBottomSheet(
@@ -147,10 +168,11 @@ fun ArabicFontSettingsBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                val isMadani = settings.selectedScript == QuranScriptType.MADANI_UTHMANI
+                val isMadani = previewScript == QuranScriptType.MADANI_UTHMANI
                 Surface(
                     onClick = {
-                        onScriptSelected(QuranScriptType.MADANI_UTHMANI)
+                        previewScript = QuranScriptType.MADANI_UTHMANI
+                        previewFont = QuranFontFamily.UTHMANIC_HAFS
                         selectedCategoryIndex = 1
                     },
                     shape = RoundedCornerShape(14.dp),
@@ -171,7 +193,8 @@ fun ArabicFontSettingsBottomSheet(
                             RadioButton(
                                 selected = isMadani,
                                 onClick = {
-                                    onScriptSelected(QuranScriptType.MADANI_UTHMANI)
+                                    previewScript = QuranScriptType.MADANI_UTHMANI
+                                    previewFont = QuranFontFamily.UTHMANIC_HAFS
                                     selectedCategoryIndex = 1
                                 },
                                 colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
@@ -191,10 +214,11 @@ fun ArabicFontSettingsBottomSheet(
                     }
                 }
 
-                val isIndoPak = settings.selectedScript == QuranScriptType.INDOPAK
+                val isIndoPak = previewScript == QuranScriptType.INDOPAK
                 Surface(
                     onClick = {
-                        onScriptSelected(QuranScriptType.INDOPAK)
+                        previewScript = QuranScriptType.INDOPAK
+                        previewFont = QuranFontFamily.INDOPAK_NASTALEEQ
                         selectedCategoryIndex = 2
                     },
                     shape = RoundedCornerShape(14.dp),
@@ -215,7 +239,8 @@ fun ArabicFontSettingsBottomSheet(
                             RadioButton(
                                 selected = isIndoPak,
                                 onClick = {
-                                    onScriptSelected(QuranScriptType.INDOPAK)
+                                    previewScript = QuranScriptType.INDOPAK
+                                    previewFont = QuranFontFamily.INDOPAK_NASTALEEQ
                                     selectedCategoryIndex = 2
                                 },
                                 colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
@@ -260,7 +285,7 @@ fun ArabicFontSettingsBottomSheet(
                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                         ) {
                             Text(
-                                text = "Live Preview (${settings.arabicFontSizeSp.toInt()}sp • ${settings.arabicFontWeight})",
+                                text = "Live Text Preview (${previewFontSize.toInt()}sp • $previewFontWeight)",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary,
@@ -294,9 +319,9 @@ fun ArabicFontSettingsBottomSheet(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Arabic Scripture Rendered with Current Typography Settings
+                    // Arabic Scripture Rendered with Current Live Preview Typography Settings
                     val currentSample = sampleVerses[selectedPreviewAyahIndex].second
-                    val formattedSample = if (settings.selectedScript == QuranScriptType.INDOPAK || settings.selectedFont.name.startsWith("INDOPAK")) {
+                    val formattedSample = if (previewScript == QuranScriptType.INDOPAK || previewFont.name.startsWith("INDOPAK")) {
                         currentSample
                             .replace("ٱ", "ا")
                             .replace("ٰ", "")
@@ -308,11 +333,11 @@ fun ArabicFontSettingsBottomSheet(
                     Text(
                         text = formattedSample,
                         style = QuranTypography.getArabicTextStyle(
-                            font = settings.selectedFont,
-                            fontSizeSp = settings.arabicFontSizeSp,
-                            fontWeight = QuranTypography.parseFontWeight(settings.arabicFontWeight),
-                            letterSpacingSp = settings.arabicLetterSpacingSp,
-                            lineHeightMultiplier = settings.arabicLineHeightMultiplier
+                            font = previewFont,
+                            fontSizeSp = previewFontSize,
+                            fontWeight = QuranTypography.parseFontWeight(previewFontWeight),
+                            letterSpacingSp = previewLetterSpacing,
+                            lineHeightMultiplier = previewLineHeight
                         ),
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -321,29 +346,49 @@ fun ArabicFontSettingsBottomSheet(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Active Font Details Badge
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(0.5.dp, QuranGold.copy(alpha = 0.5f))
+                    // Active Font Details & Live Status Badge
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(0.5.dp, QuranGold.copy(alpha = 0.5f))
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "${currentFontDetail.displayName} • ${currentFontDetail.scriptType}",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FontDownload,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "${currentFontDetail.displayName} • ${currentFontDetail.scriptType}",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        if (settings.selectedFont == previewFont) {
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.primary,
+                            ) {
+                                Text(
+                                    text = "Active in Reader",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -367,42 +412,84 @@ fun ArabicFontSettingsBottomSheet(
                     PresetChip(
                         title = "মাদানী স্ট্যান্ডার্ড",
                         subtitle = "Uthmanic 28sp",
-                        onClick = { onApplyPreset("madani_standard") }
+                        onClick = {
+                            previewFont = QuranFontFamily.UTHMANIC_HAFS
+                            previewFontSize = 28f
+                            previewLineHeight = 1.65f
+                            previewLetterSpacing = 0f
+                            previewFontWeight = "Bold"
+                            previewScript = QuranScriptType.MADANI_UTHMANI
+                        }
                     )
                 }
                 item {
                     PresetChip(
                         title = "আমিরি ক্যালিগ্রাফি",
                         subtitle = "Amiri 30sp",
-                        onClick = { onApplyPreset("amiri_classical") }
+                        onClick = {
+                            previewFont = QuranFontFamily.UTHMANIC_AMIRI
+                            previewFontSize = 30f
+                            previewLineHeight = 1.75f
+                            previewLetterSpacing = 0.2f
+                            previewFontWeight = "Bold"
+                            previewScript = QuranScriptType.MADANI_UTHMANI
+                        }
                     )
                 }
                 item {
                     PresetChip(
                         title = "ইন্দোপাক স্পষ্টতা",
                         subtitle = "Noorehidayat 30sp",
-                        onClick = { onApplyPreset("indopak_clarity") }
+                        onClick = {
+                            previewFont = QuranFontFamily.INDOPAK_NOOREHIDAYAT
+                            previewFontSize = 30f
+                            previewLineHeight = 1.8f
+                            previewLetterSpacing = 0f
+                            previewFontWeight = "Bold"
+                            previewScript = QuranScriptType.INDOPAK
+                        }
                     )
                 }
                 item {
                     PresetChip(
                         title = "নাস্তালিক লিপি",
                         subtitle = "Nastaleeq 32sp",
-                        onClick = { onApplyPreset("indopak_nastaleeq") }
+                        onClick = {
+                            previewFont = QuranFontFamily.INDOPAK_NASTALEEQ
+                            previewFontSize = 32f
+                            previewLineHeight = 1.95f
+                            previewLetterSpacing = 0f
+                            previewFontWeight = "Normal"
+                            previewScript = QuranScriptType.INDOPAK
+                        }
                     )
                 }
                 item {
                     PresetChip(
                         title = "বড় হরফ (লার্জ প্রিন্ট)",
                         subtitle = "Bold 36sp",
-                        onClick = { onApplyPreset("elder_large_print") }
+                        onClick = {
+                            previewFont = QuranFontFamily.INDOPAK_NOOREHUDA
+                            previewFontSize = 36f
+                            previewLineHeight = 1.85f
+                            previewLetterSpacing = 0.5f
+                            previewFontWeight = "Bold"
+                            previewScript = QuranScriptType.INDOPAK
+                        }
                     )
                 }
                 item {
                     PresetChip(
                         title = "কমপ্যাক্ট মুসহাফ",
                         subtitle = "Digitalkhat 24sp",
-                        onClick = { onApplyPreset("compact_mushaf") }
+                        onClick = {
+                            previewFont = QuranFontFamily.UTHMANIC_DIGITALKHAT
+                            previewFontSize = 24f
+                            previewLineHeight = 1.55f
+                            previewLetterSpacing = 0f
+                            previewFontWeight = "Medium"
+                            previewScript = QuranScriptType.MADANI_UTHMANI
+                        }
                     )
                 }
             }
@@ -445,7 +532,7 @@ fun ArabicFontSettingsBottomSheet(
 
             // List of Available Arabic Fonts from Assets
             Text(
-                text = "ফন্ট নির্বাচন করুন (${filteredFonts.size}টি ফন্ট)",
+                text = "ফন্ট নির্বাচন ও প্রিভিউ (${filteredFonts.size}টি ফন্ট)",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -453,19 +540,23 @@ fun ArabicFontSettingsBottomSheet(
             Spacer(modifier = Modifier.height(6.dp))
 
             filteredFonts.forEach { fontDetail ->
-                val isSelected = settings.selectedFont == fontDetail.fontFamilyEnum
+                val isPreviewing = previewFont == fontDetail.fontFamilyEnum
+                val isAppliedInReader = settings.selectedFont == fontDetail.fontFamilyEnum
 
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surface,
+                    color = if (isPreviewing) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surface,
                     border = BorderStroke(
-                        width = if (isSelected) 1.8.dp else 1.dp,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+                        width = if (isPreviewing) 1.8.dp else 1.dp,
+                        color = if (isPreviewing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
-                        .clickable { onFontSelected(fontDetail.fontFamilyEnum) }
+                        .clickable {
+                            previewFont = fontDetail.fontFamilyEnum
+                            hasAppliedFeedback = false
+                        }
                         .testTag("font_card_${fontDetail.fontFamilyEnum.name.lowercase()}")
                 ) {
                     Column(
@@ -483,18 +574,38 @@ fun ArabicFontSettingsBottomSheet(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 RadioButton(
-                                    selected = isSelected,
-                                    onClick = { onFontSelected(fontDetail.fontFamilyEnum) },
+                                    selected = isPreviewing,
+                                    onClick = {
+                                        previewFont = fontDetail.fontFamilyEnum
+                                        hasAppliedFeedback = false
+                                    },
                                     colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Column {
-                                    Text(
-                                        text = fontDetail.displayName,
-                                        fontSize = 14.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = fontDetail.displayName,
+                                            fontSize = 14.sp,
+                                            fontWeight = if (isPreviewing) FontWeight.Bold else FontWeight.SemiBold,
+                                            color = if (isPreviewing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                        )
+                                        if (isAppliedInReader) {
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Surface(
+                                                shape = RoundedCornerShape(4.dp),
+                                                color = QuranGold.copy(alpha = 0.2f)
+                                            ) {
+                                                Text(
+                                                    text = "In Reader",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = QuranGoldDark,
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                                )
+                                            }
+                                        }
+                                    }
                                     Text(
                                         text = "${fontDetail.banglaName} • ${fontDetail.scriptType}",
                                         fontSize = 11.sp,
@@ -534,7 +645,7 @@ fun ArabicFontSettingsBottomSheet(
                                     fontWeight = FontWeight.Bold
                                 ),
                                 textAlign = TextAlign.Right,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                color = if (isPreviewing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 12.dp, vertical = 8.dp)
@@ -575,20 +686,20 @@ fun ArabicFontSettingsBottomSheet(
                 Text("Arabic Font Size (হরফের আকার)", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
-                        onClick = { onFontSizeChanged(settings.arabicFontSizeSp - 2f) },
+                        onClick = { previewFontSize = (previewFontSize - 2f).coerceIn(18f, 52f) },
                         modifier = Modifier.size(28.dp)
                     ) {
                         Icon(Icons.Default.Remove, contentDescription = "Decrease", modifier = Modifier.size(16.dp))
                     }
                     Text(
-                        text = "${settings.arabicFontSizeSp.toInt()} sp",
+                        text = "${previewFontSize.toInt()} sp",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 6.dp)
                     )
                     IconButton(
-                        onClick = { onFontSizeChanged(settings.arabicFontSizeSp + 2f) },
+                        onClick = { previewFontSize = (previewFontSize + 2f).coerceIn(18f, 52f) },
                         modifier = Modifier.size(28.dp)
                     ) {
                         Icon(Icons.Default.Add, contentDescription = "Increase", modifier = Modifier.size(16.dp))
@@ -596,8 +707,8 @@ fun ArabicFontSettingsBottomSheet(
                 }
             }
             Slider(
-                value = settings.arabicFontSizeSp,
-                onValueChange = onFontSizeChanged,
+                value = previewFontSize,
+                onValueChange = { previewFontSize = it },
                 valueRange = 20f..46f,
                 colors = SliderDefaults.colors(
                     thumbColor = MaterialTheme.colorScheme.primary,
@@ -615,15 +726,15 @@ fun ArabicFontSettingsBottomSheet(
             ) {
                 Text("Line Spacing Multiplier (লাইন ব্যবধান)", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 Text(
-                    text = String.format("%.2fx", settings.arabicLineHeightMultiplier),
+                    text = String.format("%.2fx", previewLineHeight),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
             Slider(
-                value = settings.arabicLineHeightMultiplier,
-                onValueChange = onLineHeightMultiplierChanged,
+                value = previewLineHeight,
+                onValueChange = { previewLineHeight = it },
                 valueRange = 1.3f..2.4f,
                 colors = SliderDefaults.colors(
                     thumbColor = MaterialTheme.colorScheme.primary,
@@ -643,8 +754,8 @@ fun ArabicFontSettingsBottomSheet(
                 val weights = listOf("Normal", "Medium", "SemiBold", "Bold")
                 weights.forEach { weight ->
                     FilterChip(
-                        selected = settings.arabicFontWeight == weight,
-                        onClick = { onFontWeightChanged(weight) },
+                        selected = previewFontWeight == weight,
+                        onClick = { previewFontWeight = weight },
                         label = { Text(weight, fontSize = 12.sp) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
@@ -654,15 +765,51 @@ fun ArabicFontSettingsBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // Reset & Done Actions
+            // Apply to Quran Reader with prominent UI
+            Button(
+                onClick = { applyPreviewToReader() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .testTag("apply_font_to_reader_button"),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (hasAppliedFeedback) Color(0xFF16A34A) else MaterialTheme.colorScheme.primary
+                ),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Icon(
+                    imageVector = if (hasAppliedFeedback) Icons.Default.Check else Icons.Default.AutoStories,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (hasAppliedFeedback) "প্রয়োগ সম্পন্ন হয়েছে (Applied to Reader)" else "কুরআন রিডারে প্রয়োগ করুন (Apply to Quran Reader)",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Reset & Close Actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 OutlinedButton(
-                    onClick = onResetDefaults,
+                    onClick = {
+                        onResetDefaults()
+                        previewFont = QuranFontFamily.UTHMANIC_HAFS
+                        previewScript = QuranScriptType.MADANI_UTHMANI
+                        previewFontSize = 28f
+                        previewLineHeight = 1.7f
+                        previewLetterSpacing = 0f
+                        previewFontWeight = "Bold"
+                        hasAppliedFeedback = false
+                    },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -671,13 +818,12 @@ fun ArabicFontSettingsBottomSheet(
                     Text("রিসেট (Reset)")
                 }
 
-                Button(
+                OutlinedButton(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("সম্পন্ন (Done)", fontWeight = FontWeight.Bold)
+                    Text("বন্ধ করুন (Close)")
                 }
             }
 

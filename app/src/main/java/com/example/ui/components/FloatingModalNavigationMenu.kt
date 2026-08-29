@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -96,29 +98,28 @@ fun FloatingModalNavigationMenu(
             dismissOnClickOutside = true
         )
     ) {
-        // Semi-transparent backdrop scrim with safe drawing padding
+        // Semi-transparent backdrop scrim spanning the entire screen
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.50f))
-                .clickable { onDismiss() }
-                .windowInsetsPadding(WindowInsets.safeDrawing),
+                .clickable { onDismiss() },
             contentAlignment = Alignment.CenterStart
         ) {
-            // Left Floating Modal Navigation Card with equal top/bottom margins & rounded corners
+            // Left Navigation Drawer Card touching absolute top and bottom with rounded right corners (flush to left screen edge)
             Surface(
                 modifier = modifier
-                    .padding(start = 16.dp, top = 28.dp, bottom = 28.dp, end = 64.dp)
+                    .padding(start = 0.dp, top = 0.dp, bottom = 0.dp, end = 64.dp)
                     .fillMaxWidth()
                     .fillMaxHeight()
                     .clickable(enabled = false) {} // Prevent dismiss when tapping inside card
                     .shadow(
                         elevation = 24.dp,
-                        shape = RoundedCornerShape(26.dp),
+                        shape = RoundedCornerShape(topStart = 0.dp, bottomStart = 0.dp, topEnd = 24.dp, bottomEnd = 24.dp),
                         spotColor = Color.Black.copy(alpha = 0.45f),
                         ambientColor = Color.Black.copy(alpha = 0.30f)
                     ),
-                shape = RoundedCornerShape(26.dp),
+                shape = RoundedCornerShape(topStart = 0.dp, bottomStart = 0.dp, topEnd = 24.dp, bottomEnd = 24.dp),
                 color = Color.White,
                 tonalElevation = 2.dp
             ) {
@@ -182,6 +183,9 @@ fun FloatingModalNavigationMenuContent(
         menuItems.groupBy { it.section }
     }
 
+    val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -194,7 +198,10 @@ fun FloatingModalNavigationMenuContent(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(top = 160.dp, bottom = 68.dp)
+                .padding(
+                    top = topInset + 148.dp,
+                    bottom = bottomInset + 64.dp
+                )
         ) {
             groupedItems.forEach { (sectionName, items) ->
                 if (sectionName.isNotEmpty()) {
@@ -283,7 +290,7 @@ fun FloatingModalNavigationMenuContent(
         }
 
         // =========================================================================
-        // 1. TOP SECTION: Floating Branding Header with True Drop Shadow
+        // 1. TOP SECTION: Branding Header (flush at top of screen) with Drop Shadow
         // =========================================================================
         Column(
             modifier = Modifier
@@ -293,13 +300,18 @@ fun FloatingModalNavigationMenuContent(
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+                shape = RoundedCornerShape(topStart = 0.dp, topEnd = 24.dp),
                 color = Color.White
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 16.dp, bottom = 12.dp, start = 16.dp, end = 16.dp),
+                        .padding(
+                            top = topInset + 12.dp,
+                            bottom = 12.dp,
+                            start = 16.dp,
+                            end = 16.dp
+                        ),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Surface(
@@ -356,7 +368,7 @@ fun FloatingModalNavigationMenuContent(
         }
 
         // =========================================================================
-        // 3. BOTTOM SECTION: Floating Social Media Layout with True Drop Shadow
+        // 3. BOTTOM SECTION: Social Media Layout (flush at bottom of screen) with Drop Shadow
         // =========================================================================
         Column(
             modifier = Modifier
@@ -382,13 +394,18 @@ fun FloatingModalNavigationMenuContent(
 
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(bottomStart = 26.dp, bottomEnd = 26.dp),
+                shape = RoundedCornerShape(bottomStart = 0.dp, bottomEnd = 24.dp),
                 color = Color.White
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 12.dp),
+                        .padding(
+                            start = 18.dp,
+                            end = 18.dp,
+                            top = 10.dp,
+                            bottom = bottomInset + 10.dp
+                        ),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {

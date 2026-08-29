@@ -2,12 +2,14 @@ package com.example.ui.viewmodel
 
 import android.app.Application
 import android.content.Context
+import androidx.compose.ui.text.font.FontFamily
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.audio.AudioPlayerManager
 import com.example.data.auth.FirebaseAuthService
 import com.example.data.firestore.QuranFirestoreSyncService
 import com.example.data.model.*
+import com.example.data.preferences.QuranPreferencesManager
 import com.example.data.reminder.DailyReminderManager
 import com.example.data.repository.QuranData
 import com.example.data.repository.RecitersData
@@ -16,12 +18,17 @@ import com.example.ui.theme.QuranTypography
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class QuranViewModel(application: Application) : AndroidViewModel(application) {
 
+    val preferencesManager = QuranPreferencesManager(application)
     val audioPlayer = AudioPlayerManager(application)
     val downloadManager = audioPlayer.downloadManager
     val authService = FirebaseAuthService(application)
@@ -60,6 +67,15 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _readingSettings = MutableStateFlow(ReadingSettings())
     val readingSettings = _readingSettings.asStateFlow()
+
+    // Compose FontFamily state dynamically mapped to the selected font
+    val selectedFontFamily: StateFlow<FontFamily> = _readingSettings
+        .map { QuranTypography.getFontFamily(it.selectedFont) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = QuranTypography.getFontFamily(QuranFontFamily.UTHMANIC_HAFS)
+        )
 
     // Search
     private val _searchQuery = MutableStateFlow("")
@@ -214,6 +230,22 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                 _dailyReminderSettings.value.minute,
                 _dailyReminderSettings.value.reminderText
             )
+        }
+
+        // Collect persisted typography and appearance settings from DataStore
+        viewModelScope.launch {
+            preferencesManager.typographySettingsFlow.collect { persisted ->
+                _readingSettings.value = _readingSettings.value.copy(
+                    selectedFont = persisted.selectedFont,
+                    selectedScript = persisted.selectedScript,
+                    arabicFontSizeSp = persisted.arabicFontSizeSp,
+                    arabicLineHeightMultiplier = persisted.arabicLineHeightMultiplier,
+                    arabicLetterSpacingSp = persisted.arabicLetterSpacingSp,
+                    arabicFontWeight = persisted.arabicFontWeight,
+                    appColorTheme = persisted.appColorTheme,
+                    nightModeOption = persisted.nightModeOption
+                )
+            }
         }
     }
 
@@ -374,10 +406,12 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setAppColorTheme(theme: AppColorTheme) {
         _readingSettings.value = _readingSettings.value.copy(appColorTheme = theme)
+        viewModelScope.launch { preferencesManager.saveColorTheme(theme) }
     }
 
     fun setNightModeOption(option: NightModeOption) {
         _readingSettings.value = _readingSettings.value.copy(nightModeOption = option)
+        viewModelScope.launch { preferencesManager.saveNightMode(option) }
     }
 
     fun toggleNightMode() {
@@ -389,6 +423,7 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
             NightModeOption.SYSTEM -> NightModeOption.NIGHT
         }
         _readingSettings.value = _readingSettings.value.copy(nightModeOption = next)
+        viewModelScope.launch { preferencesManager.saveNightMode(next) }
     }
 
     fun setHighContrastNightText(enabled: Boolean) {
@@ -401,26 +436,35 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
             selectedScript = script,
             selectedFont = defaultFont
         )
+        viewModelScope.launch { preferencesManager.saveScriptType(script, defaultFont) }
     }
 
     fun setFontFamily(font: QuranFontFamily) {
         _readingSettings.value = _readingSettings.value.copy(selectedFont = font)
+        viewModelScope.launch { preferencesManager.saveFontFamily(font) }
     }
 
     fun setArabicFontSize(sizeSp: Float) {
-        _readingSettings.value = _readingSettings.value.copy(arabicFontSizeSp = sizeSp.coerceIn(18f, 52f))
+        val size = sizeSp.coerceIn(18f, 52f)
+        _readingSettings.value = _readingSettings.value.copy(arabicFontSizeSp = size)
+        viewModelScope.launch { preferencesManager.saveFontSize(size) }
     }
 
     fun setArabicLineHeightMultiplier(multiplier: Float) {
-        _readingSettings.value = _readingSettings.value.copy(arabicLineHeightMultiplier = multiplier.coerceIn(1.2f, 2.6f))
+        val mult = multiplier.coerceIn(1.2f, 2.6f)
+        _readingSettings.value = _readingSettings.value.copy(arabicLineHeightMultiplier = mult)
+        viewModelScope.launch { preferencesManager.saveLineHeight(mult) }
     }
 
     fun setArabicLetterSpacing(spacingSp: Float) {
-        _readingSettings.value = _readingSettings.value.copy(arabicLetterSpacingSp = spacingSp.coerceIn(-1.5f, 4f))
+        val spacing = spacingSp.coerceIn(-1.5f, 4f)
+        _readingSettings.value = _readingSettings.value.copy(arabicLetterSpacingSp = spacing)
+        viewModelScope.launch { preferencesManager.saveLetterSpacing(spacing) }
     }
 
     fun setArabicFontWeight(weight: String) {
         _readingSettings.value = _readingSettings.value.copy(arabicFontWeight = weight)
+        viewModelScope.launch { preferencesManager.saveFontWeight(weight) }
     }
 
     fun resetTypographySettings() {
@@ -431,6 +475,15 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
             arabicLetterSpacingSp = 0f,
             arabicFontWeight = "Bold"
         )
+        viewModelScope.launch {
+            preferencesManager.saveFullTypography(
+                font = QuranFontFamily.UTHMANIC_HAFS,
+                fontSizeSp = 28f,
+                lineHeightMultiplier = 1.7f,
+                letterSpacingSp = 0f,
+                fontWeight = "Bold"
+            )
+        }
     }
 
     fun applyTypographyPreset(presetKey: String) {
@@ -443,6 +496,11 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                     arabicLetterSpacingSp = 0f,
                     arabicFontWeight = "Bold"
                 )
+                viewModelScope.launch {
+                    preferencesManager.saveFullTypography(
+                        QuranFontFamily.UTHMANIC_HAFS, 28f, 1.65f, 0f, "Bold"
+                    )
+                }
             }
             "amiri_classical" -> {
                 _readingSettings.value = _readingSettings.value.copy(
@@ -452,6 +510,11 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                     arabicLetterSpacingSp = 0.2f,
                     arabicFontWeight = "Bold"
                 )
+                viewModelScope.launch {
+                    preferencesManager.saveFullTypography(
+                        QuranFontFamily.UTHMANIC_AMIRI, 30f, 1.75f, 0.2f, "Bold"
+                    )
+                }
             }
             "indopak_clarity" -> {
                 _readingSettings.value = _readingSettings.value.copy(
@@ -461,6 +524,11 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                     arabicLetterSpacingSp = 0f,
                     arabicFontWeight = "Bold"
                 )
+                viewModelScope.launch {
+                    preferencesManager.saveFullTypography(
+                        QuranFontFamily.INDOPAK_NOOREHIDAYAT, 30f, 1.8f, 0f, "Bold"
+                    )
+                }
             }
             "indopak_nastaleeq" -> {
                 _readingSettings.value = _readingSettings.value.copy(
@@ -470,6 +538,11 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                     arabicLetterSpacingSp = 0f,
                     arabicFontWeight = "Normal"
                 )
+                viewModelScope.launch {
+                    preferencesManager.saveFullTypography(
+                        QuranFontFamily.INDOPAK_NASTALEEQ, 32f, 1.95f, 0f, "Normal"
+                    )
+                }
             }
             "elder_large_print" -> {
                 _readingSettings.value = _readingSettings.value.copy(
@@ -479,6 +552,11 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                     arabicLetterSpacingSp = 0.5f,
                     arabicFontWeight = "Bold"
                 )
+                viewModelScope.launch {
+                    preferencesManager.saveFullTypography(
+                        QuranFontFamily.INDOPAK_NOOREHUDA, 36f, 1.85f, 0.5f, "Bold"
+                    )
+                }
             }
             "compact_mushaf" -> {
                 _readingSettings.value = _readingSettings.value.copy(
@@ -488,6 +566,11 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                     arabicLetterSpacingSp = 0f,
                     arabicFontWeight = "Medium"
                 )
+                viewModelScope.launch {
+                    preferencesManager.saveFullTypography(
+                        QuranFontFamily.UTHMANIC_DIGITALKHAT, 24f, 1.55f, 0f, "Medium"
+                    )
+                }
             }
         }
     }

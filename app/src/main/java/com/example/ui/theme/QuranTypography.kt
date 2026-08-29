@@ -1,11 +1,13 @@
 package com.example.ui.theme
 
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.model.QuranFontFamily
 import com.example.data.model.QuranScriptType
 
@@ -32,19 +34,46 @@ data class QuranFontDetail(
 /**
  * Dynamic Typography helper for Quranic Arabic text rendering
  * Supports multiple distinct styles (Uthmani Hafs, Amiri, Scheherazade, IndoPak Nastaleeq, etc.)
- * Loaded directly from high-quality TTF fonts in assets/fonts/ & res/font/
+ * Loaded directly from high-quality TTF fonts in res/font/ & assets/fonts/
  */
 object QuranTypography {
 
-    private val UthmanicHafsFontFamily = FontFamily.Serif
-    private val AmiriFontFamily = FontFamily.Serif
-    private val ScheherazadeFontFamily = FontFamily.Serif
-    private val DigitalkhatFontFamily = FontFamily.Default
-    private val MeQuranFontFamily = FontFamily.Cursive
-    private val IndoPakNastaleeqFontFamily = FontFamily.Cursive
-    private val NoorehudaFontFamily = FontFamily.Serif
-    private val NoorehidayatFontFamily = FontFamily.SansSerif
-    private val PdmsSaleemFontFamily = FontFamily.Serif
+    val UthmanicHafsFontFamily = FontFamily(
+        Font(R.font.uthmanic_hafs, FontWeight.Normal),
+        Font(R.font.uthmanic_hafs, FontWeight.Bold)
+    )
+    val AmiriFontFamily = FontFamily(
+        Font(R.font.amiri_quran, FontWeight.Normal),
+        Font(R.font.amiri_quran, FontWeight.Bold)
+    )
+    val ScheherazadeFontFamily = FontFamily(
+        Font(R.font.scheherazade_new, FontWeight.Normal),
+        Font(R.font.scheherazade_new, FontWeight.Bold)
+    )
+    val DigitalkhatFontFamily = FontFamily(
+        Font(R.font.digitalkhat, FontWeight.Normal),
+        Font(R.font.digitalkhat, FontWeight.Bold)
+    )
+    val MeQuranFontFamily = FontFamily(
+        Font(R.font.me_quran, FontWeight.Normal),
+        Font(R.font.me_quran, FontWeight.Bold)
+    )
+    val IndoPakNastaleeqFontFamily = FontFamily(
+        Font(R.font.indopak_nastaleeq, FontWeight.Normal),
+        Font(R.font.indopak_nastaleeq, FontWeight.Bold)
+    )
+    val NoorehudaFontFamily = FontFamily(
+        Font(R.font.noorehuda, FontWeight.Normal),
+        Font(R.font.noorehuda, FontWeight.Bold)
+    )
+    val NoorehidayatFontFamily = FontFamily(
+        Font(R.font.noorehidayat, FontWeight.Normal),
+        Font(R.font.noorehidayat, FontWeight.Bold)
+    )
+    val PdmsSaleemFontFamily = FontFamily(
+        Font(R.font.pdms_saleem, FontWeight.Normal),
+        Font(R.font.pdms_saleem, FontWeight.Bold)
+    )
 
     val availableFonts: List<QuranFontDetail> = listOf(
         QuranFontDetail(

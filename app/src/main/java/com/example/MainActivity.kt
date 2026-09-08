@@ -428,7 +428,9 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                             onSignInWithGoogle = { viewModel.signInWithGoogle(context) },
                             onQuickSignIn = { viewModel.quickConnectAccount() },
                             onSyncNow = { viewModel.syncWithFirestore() },
-                            onSignOut = { viewModel.signOutFromFirebase() }
+                            onSignOut = { viewModel.signOutFromFirebase() },
+                            lastReadList = lastReadList,
+                            onNavigateToAyah = { s, a -> viewModel.openSurah(s, a) }
                         )
                     }
                 }

@@ -23,11 +23,13 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.CloudSyncStatus
 import com.example.data.model.DailyReminderSettings
 import com.example.data.model.DailyVersesMetric
+import com.example.data.model.LibraryItem
 import com.example.data.model.UserProfile
 import com.example.data.model.UserQuranCloudData
 import com.example.data.model.WeeklyReadingSummary
 import com.example.ui.components.FirebaseAuthStatsCard
 import com.example.ui.components.ReadingProgressChartCard
+import com.example.ui.components.StatsHeroBanner
 import com.example.ui.theme.IslamicEmeraldContainer
 import com.example.ui.theme.IslamicEmeraldPrimary
 import com.example.ui.theme.QuranGold
@@ -51,6 +53,8 @@ fun StatsScreen(
     onQuickSignIn: () -> Unit = {},
     onSyncNow: () -> Unit = {},
     onSignOut: () -> Unit = {},
+    lastReadList: List<LibraryItem> = emptyList(),
+    onNavigateToAyah: (surahNumber: Int, ayahNumber: Int) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -81,7 +85,16 @@ fun StatsScreen(
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        // TOP: Firebase Authentication & Cloud Firestore Persistence
+        // TOP 1: Auto-Sliding Hero Banner (সর্বশেষ পঠিত আয়াত ও ১০টি গুরুত্বপূর্ণ আয়াত)
+        StatsHeroBanner(
+            lastRead = lastReadList.firstOrNull(),
+            onResumeRead = { item -> onNavigateToAyah(item.surahNumber, item.ayahNumber) },
+            onAyahClick = { s, a -> onNavigateToAyah(s, a) }
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Firebase Authentication & Cloud Firestore Persistence
         FirebaseAuthStatsCard(
             user = currentUser,
             syncStatus = cloudSyncStatus,

@@ -253,9 +253,15 @@ fun QuranReadingScreen(
                     val rukuNum = firstAyah?.rukuNumber ?: surah.startRuku
 
                     Surface(
+                        onClick = {
+                            haptics.tap()
+                            onTitleClick()
+                        },
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("reading_subheader_jump")
                     ) {
                         Row(
                             modifier = Modifier
@@ -264,12 +270,21 @@ fun QuranReadingScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "পারা $juzNum  •  Hizb $hizbNum  •  পৃষ্ঠা $pageNum  •  রকু $rukuNum",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "পারা $juzNum  •  Hizb $hizbNum  •  পৃষ্ঠা $pageNum  •  রকু $rukuNum",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Jump",
+                                    tint = IslamicEmeraldPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
 
                             Surface(
                                 onClick = {

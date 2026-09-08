@@ -3,8 +3,12 @@ package com.example.ui.components
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,25 +23,25 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.repository.QuranData
-import com.example.ui.theme.QuranGold
+import com.example.ui.theme.IslamicEmeraldPrimary
+import kotlinx.coroutines.launch
 
-enum class JumpSubject(val title: String, val banglaTitle: String) {
-    SURAH("Surah & Ayah", "সূরা ও আয়াত"),
-    PAGE("Page", "পৃষ্ঠা"),
-    JUZ("Juz", "পারা"),
-    HIZB("Hizb", "হিযব"),
-    RUKU("Ruku", "রুকু")
+enum class JumpSectionFilter(val label: String) {
+    ALL("All"),
+    SURAH_PAGE("Surah / Page"),
+    JUZ("Juz"),
+    HIZB("Hizb"),
+    RUKU("Ruku")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,45 +52,81 @@ fun JumpToAyahBottomSheet(
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
-    var selectedSubject by remember { mutableStateOf(JumpSubject.SURAH) }
+    var selectedFilter by remember { mutableStateOf(JumpSectionFilter.ALL) }
 
-    // 1. Surah & Ayah state
-    var selectedSurahNumber by remember { mutableStateOf(1) }
-    var selectedAyahNumber by remember { mutableStateOf(1) }
-    var surahSearchInput by remember { mutableStateOf("1") }
+    // 1. Surah, Ayah, Page state
+    var selectedSurahNumber by remember { mutableIntStateOf(1) }
+    var selectedAyahNumber by remember { mutableIntStateOf(1) }
+    var selectedPageNumber by remember { mutableIntStateOf(1) }
+
+    var surahInput by remember { mutableStateOf("1") }
     var ayahInput by remember { mutableStateOf("1") }
+    var pageInput by remember { mutableStateOf("1") }
 
     val currentSurah = remember(selectedSurahNumber) {
         QuranData.surahs.getOrNull(selectedSurahNumber - 1) ?: QuranData.surahs[0]
     }
-    val maxAyahsInCurrentSurah = currentSurah.totalAyahs
+    val maxAyahs = currentSurah.totalAyahs
 
-    // 2. Page state
-    var selectedPageNumber by remember { mutableStateOf(1) }
-    var pageInput by remember { mutableStateOf("1") }
-    val currentPageInfo = remember(selectedPageNumber) {
-        QuranData.pageList.getOrNull(selectedPageNumber - 1) ?: QuranData.pageList[0]
-    }
+    // 2. Juz state
+    var selectedJuzNumber by remember { mutableIntStateOf(1) }
+    var juzSearchInput by remember { mutableStateOf("") }
+    var juzNoInput by remember { mutableStateOf("1") }
 
-    // 3. Juz state
-    var selectedJuzNumber by remember { mutableStateOf(1) }
-    var juzInput by remember { mutableStateOf("1") }
     val currentJuzInfo = remember(selectedJuzNumber) {
         QuranData.juzList.getOrNull(selectedJuzNumber - 1) ?: QuranData.juzList[0]
     }
 
-    // 4. Hizb state
-    var selectedHizbNumber by remember { mutableStateOf(1) }
-    var hizbInput by remember { mutableStateOf("1") }
+    // 3. Hizb state
+    var selectedHizbNumber by remember { mutableIntStateOf(1) }
+    var hizbSearchInput by remember { mutableStateOf("") }
+    var hizbNoInput by remember { mutableStateOf("1") }
+
     val currentHizbInfo = remember(selectedHizbNumber) {
         QuranData.hizbList.getOrNull(selectedHizbNumber - 1) ?: QuranData.hizbList[0]
     }
 
-    // 5. Ruku state
-    var selectedRukuNumber by remember { mutableStateOf(1) }
-    var rukuInput by remember { mutableStateOf("1") }
+    // 4. Ruku state
+    var selectedRukuNumber by remember { mutableIntStateOf(1) }
+    var rukuSearchInput by remember { mutableStateOf("") }
+    var rukuNoInput by remember { mutableStateOf("1") }
+
     val currentRukuInfo = remember(selectedRukuNumber) {
         QuranData.rukuList.getOrNull(selectedRukuNumber - 1) ?: QuranData.rukuList[0]
+    }
+
+    // Lazy list states for sliders/wheels
+    val surahListState = rememberLazyListState(initialFirstVisibleItemIndex = 0)
+    val ayahListState = rememberLazyListState(initialFirstVisibleItemIndex = 0)
+    val pageListState = rememberLazyListState(initialFirstVisibleItemIndex = 0)
+    val juzListState = rememberLazyListState(initialFirstVisibleItemIndex = 0)
+    val hizbListState = rememberLazyListState(initialFirstVisibleItemIndex = 0)
+    val rukuListState = rememberLazyListState(initialFirstVisibleItemIndex = 0)
+
+    // Sync scroll when selection changes
+    LaunchedEffect(selectedSurahNumber) {
+        val targetIdx = (selectedSurahNumber - 1).coerceIn(0, QuranData.surahs.size - 1)
+        surahListState.animateScrollToItem((targetIdx - 1).coerceAtLeast(0))
+    }
+    LaunchedEffect(selectedAyahNumber) {
+        val targetIdx = (selectedAyahNumber - 1).coerceIn(0, maxAyahs - 1)
+        ayahListState.animateScrollToItem((targetIdx - 1).coerceAtLeast(0))
+    }
+    LaunchedEffect(selectedPageNumber) {
+        val targetIdx = (selectedPageNumber - 1).coerceIn(0, 603)
+        pageListState.animateScrollToItem((targetIdx - 1).coerceAtLeast(0))
+    }
+    LaunchedEffect(selectedJuzNumber) {
+        val targetIdx = (selectedJuzNumber - 1).coerceIn(0, QuranData.juzList.size - 1)
+        juzListState.animateScrollToItem((targetIdx - 1).coerceAtLeast(0))
+    }
+    LaunchedEffect(selectedHizbNumber) {
+        val targetIdx = (selectedHizbNumber - 1).coerceIn(0, QuranData.hizbList.size - 1)
+        hizbListState.animateScrollToItem((targetIdx - 1).coerceAtLeast(0))
+    }
+    LaunchedEffect(selectedRukuNumber) {
+        val targetIdx = (selectedRukuNumber - 1).coerceIn(0, QuranData.rukuList.size - 1)
+        rukuListState.animateScrollToItem((targetIdx - 1).coerceAtLeast(0))
     }
 
     ModalBottomSheet(
@@ -100,7 +140,7 @@ fun JumpToAyahBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -113,31 +153,33 @@ fun JumpToAyahBottomSheet(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer),
+                            .background(IslamicEmeraldPrimary.copy(alpha = 0.12f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Navigation,
-                            contentDescription = "Navigation",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
+                            imageVector = Icons.Default.OpenInNew,
+                            contentDescription = "Jump",
+                            tint = IslamicEmeraldPrimary,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "Jump to Destination",
+                            text = "Jump to Ayah / Destination",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = IslamicEmeraldPrimary,
+                                fontSize = 16.sp
                             )
                         )
                         Text(
                             text = "সূরা, আয়াত, পৃষ্ঠা, পারা বা রুকুতে সরাসরি যান",
                             style = MaterialTheme.typography.bodySmall.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 11.sp
                             )
                         )
                     }
@@ -146,345 +188,165 @@ fun JumpToAyahBottomSheet(
                 IconButton(
                     onClick = onDismiss,
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(34.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close",
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Subject Navigation Pills / Tabs
+            // Quick Filter Pills
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                JumpSubject.values().forEach { subject ->
-                    val isSelected = selectedSubject == subject
+                JumpSectionFilter.values().forEach { filter ->
+                    val isSelected = selectedFilter == filter
                     Surface(
-                        onClick = { selectedSubject = subject },
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                        border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("jump_tab_${subject.name.lowercase()}")
+                        onClick = { selectedFilter = filter },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) IslamicEmeraldPrimary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = if (isSelected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        Box(
+                            modifier = Modifier.padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = subject.title,
-                                style = MaterialTheme.typography.labelMedium.copy(
+                                text = filter.label,
+                                style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
-                                    fontSize = 11.sp
+                                    fontSize = 10.5.sp
                                 ),
-                                maxLines = 1
-                            )
-                            Text(
-                                text = subject.banglaTitle,
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = if (isSelected) Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 9.sp
-                                ),
-                                maxLines = 1
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Interactive Content Box based on Selected Subject
-            when (selectedSubject) {
-                JumpSubject.SURAH -> {
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            // Section Banner
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        text = "${currentSurah.number}. ${currentSurah.englishName}",
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    )
-                                    Text(
-                                        text = "${currentSurah.banglaTranslation} • ${currentSurah.revelationType} • ${currentSurah.totalAyahs} আয়াত",
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    )
-                                }
+            // =========================================================================
+            // SECTION 1: Surah, Ayah, Page (Matching Image 1 & 2 Blueprint)
+            // =========================================================================
+            if (selectedFilter == JumpSectionFilter.ALL || selectedFilter == JumpSectionFilter.SURAH_PAGE) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                    border = BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.25f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        // Section Header
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = currentSurah.arabicName,
-                                    style = MaterialTheme.typography.titleLarge.copy(
-                                        color = MaterialTheme.colorScheme.primary,
+                                    text = "Surah / Ayah / Page",
+                                    style = MaterialTheme.typography.titleSmall.copy(
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 22.sp
+                                        color = IslamicEmeraldPrimary
+                                    )
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "(${currentSurah.englishName} : $selectedAyahNumber)",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 )
                             }
-
-                            Spacer(modifier = Modifier.height(14.dp))
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            // 1. Text Inputs (লিখার মাধ্যমে সিলেক্ট)
                             Text(
-                                text = "লিখার মাধ্যমে নির্বাচন করুন (Type to Select)",
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                text = currentSurah.arabicName,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = IslamicEmeraldPrimary
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                        }
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                OutlinedTextField(
-                                    value = surahSearchInput,
-                                    onValueChange = { input ->
-                                        surahSearchInput = input
-                                        val num = input.toIntOrNull()
-                                        if (num != null && num in 1..114) {
-                                            selectedSurahNumber = num
-                                            if (selectedAyahNumber > currentSurah.totalAyahs) {
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Row of 3 Input Boxes: [ Surah ] [ Ayah ] [ Page ]
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Surah Input
+                            OutlinedTextField(
+                                value = surahInput,
+                                onValueChange = { input ->
+                                    surahInput = input
+                                    val num = input.toIntOrNull()
+                                    if (num != null && num in 1..114) {
+                                        selectedSurahNumber = num
+                                        if (selectedAyahNumber > QuranData.surahs[num - 1].totalAyahs) {
+                                            selectedAyahNumber = 1
+                                            ayahInput = "1"
+                                        }
+                                        selectedPageNumber = QuranData.surahs[num - 1].startPage
+                                        pageInput = selectedPageNumber.toString()
+                                    } else {
+                                        val match = QuranData.surahs.find {
+                                            it.englishName.contains(input, ignoreCase = true) ||
+                                            it.banglaTranslation.contains(input, ignoreCase = true) ||
+                                            it.arabicName.contains(input)
+                                        }
+                                        if (match != null) {
+                                            selectedSurahNumber = match.number
+                                            if (selectedAyahNumber > match.totalAyahs) {
                                                 selectedAyahNumber = 1
                                                 ayahInput = "1"
                                             }
-                                        } else {
-                                            // Search by surah name
-                                            val found = QuranData.surahs.find {
-                                                it.englishName.contains(input, ignoreCase = true) ||
-                                                it.banglaTranslation.contains(input, ignoreCase = true) ||
-                                                it.arabicName.contains(input)
-                                            }
-                                            if (found != null) {
-                                                selectedSurahNumber = found.number
-                                                if (selectedAyahNumber > found.totalAyahs) {
-                                                    selectedAyahNumber = 1
-                                                    ayahInput = "1"
-                                                }
-                                            }
+                                            selectedPageNumber = match.startPage
+                                            pageInput = selectedPageNumber.toString()
                                         }
-                                    },
-                                    label = { Text("সূরা নাম / নম্বর (১-১১৪)") },
-                                    singleLine = true,
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
-                                    modifier = Modifier
-                                        .weight(1.3f)
-                                        .testTag("jump_surah_input"),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-
-                                OutlinedTextField(
-                                    value = ayahInput,
-                                    onValueChange = { input ->
-                                        ayahInput = input
-                                        val aNum = input.toIntOrNull()
-                                        if (aNum != null && aNum in 1..maxAyahsInCurrentSurah) {
-                                            selectedAyahNumber = aNum
-                                        }
-                                    },
-                                    label = { Text("আয়াত (১-$maxAyahsInCurrentSurah)") },
-                                    singleLine = true,
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                                    modifier = Modifier
-                                        .weight(0.9f)
-                                        .testTag("jump_ayah_input"),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(18.dp))
-
-                            // 2. Sliders (স্লাইডারের মাধ্যমে সিলেক্ট)
-                            Text(
-                                text = "স্লাইডারের মাধ্যমে নির্বাচন করুন (Slider Selection)",
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Surah Slider (সূরা নির্বাচন):",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "$selectedSurahNumber / 114 (${currentSurah.englishName})",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-
-                            Slider(
-                                value = selectedSurahNumber.toFloat(),
-                                onValueChange = { value ->
-                                    selectedSurahNumber = value.toInt().coerceIn(1, 114)
-                                    surahSearchInput = selectedSurahNumber.toString()
-                                    if (selectedAyahNumber > currentSurah.totalAyahs) {
-                                        selectedAyahNumber = 1
-                                        ayahInput = "1"
                                     }
                                 },
-                                valueRange = 1f..114f,
-                                steps = 113,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                ),
+                                placeholder = { Text("|A...", fontSize = 11.sp) },
+                                label = { Text("Surah", fontSize = 10.sp) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
+                                shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("jump_surah_slider")
+                                    .weight(1.3f)
+                                    .testTag("input_surah")
                             )
 
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Ayah Slider (আয়াত নির্বাচন):",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "Ayah $selectedAyahNumber of $maxAyahsInCurrentSurah",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-
-                            Slider(
-                                value = selectedAyahNumber.toFloat().coerceIn(1f, maxAyahsInCurrentSurah.toFloat()),
-                                onValueChange = { value ->
-                                    selectedAyahNumber = value.toInt().coerceIn(1, maxAyahsInCurrentSurah)
-                                    ayahInput = selectedAyahNumber.toString()
+                            // Ayah Input
+                            OutlinedTextField(
+                                value = ayahInput,
+                                onValueChange = { input ->
+                                    ayahInput = input
+                                    val aNum = input.toIntOrNull()
+                                    if (aNum != null && aNum in 1..maxAyahs) {
+                                        selectedAyahNumber = aNum
+                                    }
                                 },
-                                valueRange = 1f..maxAyahsInCurrentSurah.toFloat(),
-                                steps = if (maxAyahsInCurrentSurah > 1) maxAyahsInCurrentSurah - 1 else 0,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                ),
+                                placeholder = { Text("1..2", fontSize = 11.sp) },
+                                label = { Text("Ayah", fontSize = 10.sp) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                                shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("jump_ayah_slider")
+                                    .weight(1f)
+                                    .testTag("input_ayah")
                             )
 
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // 3. Dedicated Action Button (আলাদা বাটন)
-                            Button(
-                                onClick = {
-                                    onNavigateToSurah(selectedSurahNumber, selectedAyahNumber)
-                                    onDismiss()
-                                },
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp)
-                                    .testTag("go_to_surah_button")
-                            ) {
-                                Icon(imageVector = Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Go to Surah & Ayah (সূরা ও আয়াতে যান)",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                            }
-                        }
-                    }
-                }
-
-                JumpSubject.PAGE -> {
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(
-                                        text = "Page $selectedPageNumber of 604",
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    )
-                                    Text(
-                                        text = "Starts at: ${currentPageInfo.startSurahName}",
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    )
-                                }
-                                Text(
-                                    text = "صفحة $selectedPageNumber",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(14.dp))
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            // Text Input
-                            Text(
-                                text = "পৃষ্ঠা নম্বর লিখুন (Type Page Number):",
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-
+                            // Page Input
                             OutlinedTextField(
                                 value = pageInput,
                                 onValueChange = { input ->
@@ -494,495 +356,825 @@ fun JumpToAyahBottomSheet(
                                         selectedPageNumber = pNum
                                     }
                                 },
-                                label = { Text("পৃষ্ঠা নম্বর (১ - ৬০৪)") },
+                                placeholder = { Text("1..2", fontSize = 11.sp) },
+                                label = { Text("Page", fontSize = 10.sp) },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                 keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                                shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("jump_page_input"),
-                                shape = RoundedCornerShape(12.dp)
+                                    .weight(1f)
+                                    .testTag("input_page")
                             )
+                        }
 
-                            Spacer(modifier = Modifier.height(18.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                            // Slider
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                        // 3-Column Scrollable Wheel / Picker View
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            // Column 1: Surah Name List (Arabic & English)
+                            Card(
+                                shape = RoundedCornerShape(10.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                modifier = Modifier
+                                    .weight(1.4f)
+                                    .fillMaxHeight()
                             ) {
-                                Text(
-                                    text = "স্লাইডার দিয়ে পৃষ্ঠা নির্বাচন:",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "পৃষ্ঠা $selectedPageNumber",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                Column(modifier = Modifier.fillMaxSize()) {
+                                    Text(
+                                        text = "Surah Name",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = IslamicEmeraldPrimary,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                                    LazyColumn(
+                                        state = surahListState,
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        itemsIndexed(QuranData.surahs) { idx, surah ->
+                                            val isSelected = surah.number == selectedSurahNumber
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        selectedSurahNumber = surah.number
+                                                        surahInput = surah.number.toString()
+                                                        if (selectedAyahNumber > surah.totalAyahs) {
+                                                            selectedAyahNumber = 1
+                                                            ayahInput = "1"
+                                                        }
+                                                        selectedPageNumber = surah.startPage
+                                                        pageInput = surah.startPage.toString()
+                                                    }
+                                                    .background(if (isSelected) IslamicEmeraldPrimary.copy(alpha = 0.14f) else Color.Transparent)
+                                                    .then(
+                                                        if (isSelected) Modifier.border(1.dp, IslamicEmeraldPrimary, RoundedCornerShape(4.dp))
+                                                        else Modifier
+                                                    )
+                                                    .padding(horizontal = 6.dp, vertical = 5.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(
+                                                        text = "${surah.number}. ${surah.englishName}",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                        color = if (isSelected) IslamicEmeraldPrimary else MaterialTheme.colorScheme.onSurface,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                    Text(
+                                                        text = surah.arabicName,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                        color = if (isSelected) IslamicEmeraldPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
 
-                            Slider(
-                                value = selectedPageNumber.toFloat(),
-                                onValueChange = { value ->
-                                    selectedPageNumber = value.toInt().coerceIn(1, 604)
-                                    pageInput = selectedPageNumber.toString()
-                                },
-                                valueRange = 1f..604f,
-                                steps = 603,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                ),
+                            // Column 2: Ayah Number List
+                            Card(
+                                shape = RoundedCornerShape(10.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("jump_page_slider")
-                            )
+                                    .weight(0.8f)
+                                    .fillMaxHeight()
+                            ) {
+                                Column(modifier = Modifier.fillMaxSize()) {
+                                    Text(
+                                        text = "Ayah",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = IslamicEmeraldPrimary,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                                    LazyColumn(
+                                        state = ayahListState,
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        items(maxAyahs) { i ->
+                                            val aNum = i + 1
+                                            val isSelected = aNum == selectedAyahNumber
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        selectedAyahNumber = aNum
+                                                        ayahInput = aNum.toString()
+                                                    }
+                                                    .background(if (isSelected) IslamicEmeraldPrimary.copy(alpha = 0.14f) else Color.Transparent)
+                                                    .then(
+                                                        if (isSelected) Modifier.border(1.dp, IslamicEmeraldPrimary, RoundedCornerShape(4.dp))
+                                                        else Modifier
+                                                    )
+                                                    .padding(vertical = 5.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = "$aNum",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isSelected) IslamicEmeraldPrimary else MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                            // Column 3: Page Number List
+                            Card(
+                                shape = RoundedCornerShape(10.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                                modifier = Modifier
+                                    .weight(0.8f)
+                                    .fillMaxHeight()
+                            ) {
+                                Column(modifier = Modifier.fillMaxSize()) {
+                                    Text(
+                                        text = "Page",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = IslamicEmeraldPrimary,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                                    LazyColumn(
+                                        state = pageListState,
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        items(604) { p ->
+                                            val pNum = p + 1
+                                            val isSelected = pNum == selectedPageNumber
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        selectedPageNumber = pNum
+                                                        pageInput = pNum.toString()
+                                                    }
+                                                    .background(if (isSelected) IslamicEmeraldPrimary.copy(alpha = 0.14f) else Color.Transparent)
+                                                    .then(
+                                                        if (isSelected) Modifier.border(1.dp, IslamicEmeraldPrimary, RoundedCornerShape(4.dp))
+                                                        else Modifier
+                                                    )
+                                                    .padding(vertical = 5.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = "$pNum",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isSelected) IslamicEmeraldPrimary else MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
-                            // Dedicated Button
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Two Action Buttons: [ Go to Surah ] [ Go to Page ]
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
                             Button(
                                 onClick = {
-                                    onNavigateToSurah(currentPageInfo.startSurah, currentPageInfo.startAyah)
+                                    onNavigateToSurah(selectedSurahNumber, selectedAyahNumber)
                                     onDismiss()
                                 },
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp)
-                                    .testTag("go_to_page_button")
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .testTag("button_go_to_surah")
                             ) {
-                                Icon(imageVector = Icons.Default.MenuBook, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Go to Page (পৃষ্ঠায় যান)",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
+                                Icon(Icons.Default.MenuBook, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Go to Surah", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    val pageInfo = QuranData.pageList.getOrNull(selectedPageNumber - 1) ?: QuranData.pageList[0]
+                                    onNavigateToSurah(pageInfo.startSurah, pageInfo.startAyah)
+                                    onDismiss()
+                                },
+                                shape = RoundedCornerShape(20.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .testTag("button_go_to_page")
+                            ) {
+                                Icon(Icons.Default.AutoStories, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Go to Page", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(14.dp))
+            }
 
-                JumpSubject.JUZ -> {
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Juz $selectedJuzNumber (পারা $selectedJuzNumber)",
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    )
-                                    Text(
-                                        text = "Starts: ${currentJuzInfo.startSurahName}",
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    )
-                                }
-                                Text(
-                                    text = currentJuzInfo.arabicName,
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Bold,
-                                        textAlign = TextAlign.End
-                                    ),
-                                    maxLines = 1
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(14.dp))
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            // Text Input
-                            Text(
-                                text = "পারা নম্বর বা নাম লিখুন (Type Juz Number):",
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+            // =========================================================================
+            // SECTION 2: Juz Section (Matching Image 1 & 2 Blueprint)
+            // =========================================================================
+            if (selectedFilter == JumpSectionFilter.ALL || selectedFilter == JumpSectionFilter.JUZ) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                    border = BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.25f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text(
+                            text = "Juz (পারা)",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = IslamicEmeraldPrimary
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Top Row: [ Juz ] [ No. ] [ Go to Juz ]
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = juzSearchInput,
+                                onValueChange = { input ->
+                                    juzSearchInput = input
+                                    val match = QuranData.juzList.find {
+                                        it.arabicName.contains(input) || it.startSurahName.contains(input, ignoreCase = true)
+                                    }
+                                    if (match != null) {
+                                        selectedJuzNumber = match.number
+                                        juzNoInput = match.number.toString()
+                                    }
+                                },
+                                placeholder = { Text("Juz", fontSize = 11.sp) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier
+                                    .weight(1.2f)
+                                    .testTag("input_juz_name")
+                            )
 
                             OutlinedTextField(
-                                value = juzInput,
+                                value = juzNoInput,
                                 onValueChange = { input ->
-                                    juzInput = input
+                                    juzNoInput = input
                                     val jNum = input.toIntOrNull()
                                     if (jNum != null && jNum in 1..30) {
                                         selectedJuzNumber = jNum
-                                    } else {
-                                        val found = QuranData.juzList.find {
-                                            it.arabicName.contains(input) || it.startSurahName.contains(input, ignoreCase = true)
-                                        }
-                                        if (found != null) {
-                                            selectedJuzNumber = found.number
-                                        }
                                     }
                                 },
-                                label = { Text("পারা নম্বর (১ - ৩০)") },
+                                placeholder = { Text("1..2", fontSize = 11.sp) },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                                shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("jump_juz_input"),
-                                shape = RoundedCornerShape(12.dp)
+                                    .weight(0.8f)
+                                    .testTag("input_juz_no")
                             )
 
-                            Spacer(modifier = Modifier.height(18.dp))
-
-                            // Slider
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "স্লাইডার দিয়ে পারা নির্বাচন:",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "পারা $selectedJuzNumber / 30",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-
-                            Slider(
-                                value = selectedJuzNumber.toFloat(),
-                                onValueChange = { value ->
-                                    selectedJuzNumber = value.toInt().coerceIn(1, 30)
-                                    juzInput = selectedJuzNumber.toString()
-                                },
-                                valueRange = 1f..30f,
-                                steps = 29,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("jump_juz_slider")
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // Dedicated Button
                             Button(
                                 onClick = {
                                     onNavigateToSurah(currentJuzInfo.startSurah, currentJuzInfo.startAyah)
                                     onDismiss()
                                 },
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
+                                contentPadding = PaddingValues(horizontal = 14.dp),
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp)
-                                    .testTag("go_to_juz_button")
+                                    .height(44.dp)
+                                    .testTag("button_go_to_juz")
                             ) {
-                                Icon(imageVector = Icons.Default.AutoStories, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Go to Juz (পারায় যান)",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
+                                Text("Go to Juz", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // 2-Column Scrollable Picker: [ Arabic Snippet ] [ Juz Number ]
+                        Card(
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                        ) {
+                            Row(modifier = Modifier.fillMaxSize()) {
+                                // Column 1: Arabic Snippet
+                                LazyColumn(
+                                    state = juzListState,
+                                    modifier = Modifier
+                                        .weight(2f)
+                                        .fillMaxHeight()
+                                ) {
+                                    itemsIndexed(QuranData.juzList) { idx, juz ->
+                                        val isSelected = juz.number == selectedJuzNumber
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    selectedJuzNumber = juz.number
+                                                    juzNoInput = juz.number.toString()
+                                                    juzSearchInput = juz.startSurahName
+                                                }
+                                                .background(if (isSelected) IslamicEmeraldPrimary.copy(alpha = 0.14f) else Color.Transparent)
+                                                .then(
+                                                    if (isSelected) Modifier.border(1.dp, IslamicEmeraldPrimary, RoundedCornerShape(4.dp))
+                                                    else Modifier
+                                                )
+                                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = juz.arabicName,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isSelected) IslamicEmeraldPrimary else MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = juz.startSurahName,
+                                                    fontSize = 10.sp,
+                                                    color = Color.Gray
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                                // Column 2: Juz Number
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .weight(0.8f)
+                                        .fillMaxHeight()
+                                ) {
+                                    items(30) { j ->
+                                        val jNum = j + 1
+                                        val isSelected = jNum == selectedJuzNumber
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    selectedJuzNumber = jNum
+                                                    juzNoInput = jNum.toString()
+                                                }
+                                                .background(if (isSelected) IslamicEmeraldPrimary.copy(alpha = 0.14f) else Color.Transparent)
+                                                .then(
+                                                    if (isSelected) Modifier.border(1.dp, IslamicEmeraldPrimary, RoundedCornerShape(4.dp))
+                                                    else Modifier
+                                                )
+                                                .padding(vertical = 6.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "Juz $jNum",
+                                                fontSize = 12.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (isSelected) IslamicEmeraldPrimary else MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(14.dp))
+            }
 
-                JumpSubject.HIZB -> {
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "${currentHizbInfo.quarter} Hizb ${currentHizbInfo.number}",
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    )
-                                    Text(
-                                        text = "Starts: ${currentHizbInfo.startSurahName}",
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    )
-                                }
-                                Text(
-                                    text = "حزب $selectedHizbNumber",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(14.dp))
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            // Text Input
-                            Text(
-                                text = "হিযব নম্বর লিখুন (Type Hizb Number):",
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+            // =========================================================================
+            // SECTION 3: Hizb Section (Matching Image 1 & 2 Blueprint)
+            // =========================================================================
+            if (selectedFilter == JumpSectionFilter.ALL || selectedFilter == JumpSectionFilter.HIZB) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                    border = BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.25f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text(
+                            text = "Hizb (হিযব)",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = IslamicEmeraldPrimary
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Top Row: [ Hizb ] [ No. ] [ Go to Hizb ]
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = hizbSearchInput,
+                                onValueChange = { input ->
+                                    hizbSearchInput = input
+                                    val match = QuranData.hizbList.find {
+                                        it.arabicName.contains(input) || it.startSurahName.contains(input, ignoreCase = true)
+                                    }
+                                    if (match != null) {
+                                        selectedHizbNumber = match.number
+                                        hizbNoInput = match.number.toString()
+                                    }
+                                },
+                                placeholder = { Text("Hizb", fontSize = 11.sp) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier
+                                    .weight(1.2f)
+                                    .testTag("input_hizb_name")
+                            )
 
                             OutlinedTextField(
-                                value = hizbInput,
+                                value = hizbNoInput,
                                 onValueChange = { input ->
-                                    hizbInput = input
+                                    hizbNoInput = input
                                     val hNum = input.toIntOrNull()
                                     if (hNum != null && hNum in 1..60) {
                                         selectedHizbNumber = hNum
                                     }
                                 },
-                                label = { Text("হিযব নম্বর (১ - ৬০)") },
+                                placeholder = { Text("1..2", fontSize = 11.sp) },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                                shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("jump_hizb_input"),
-                                shape = RoundedCornerShape(12.dp)
+                                    .weight(0.8f)
+                                    .testTag("input_hizb_no")
                             )
 
-                            Spacer(modifier = Modifier.height(18.dp))
-
-                            // Slider
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "স্লাইডার দিয়ে হিযব নির্বাচন:",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "হিযব $selectedHizbNumber / 60",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-
-                            Slider(
-                                value = selectedHizbNumber.toFloat(),
-                                onValueChange = { value ->
-                                    selectedHizbNumber = value.toInt().coerceIn(1, 60)
-                                    hizbInput = selectedHizbNumber.toString()
-                                },
-                                valueRange = 1f..60f,
-                                steps = 59,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("jump_hizb_slider")
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // Dedicated Button
                             Button(
                                 onClick = {
                                     onNavigateToSurah(currentHizbInfo.startSurah, currentHizbInfo.startAyah)
                                     onDismiss()
                                 },
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
+                                contentPadding = PaddingValues(horizontal = 14.dp),
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp)
-                                    .testTag("go_to_hizb_button")
+                                    .height(44.dp)
+                                    .testTag("button_go_to_hizb")
                             ) {
-                                Icon(imageVector = Icons.Default.Bookmarks, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Go to Hizb (হিযবে যান)",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
+                                Text("Go to Hizb", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // 2-Column Scrollable Picker: [ Arabic Snippet ] [ Hizb Number ]
+                        Card(
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                        ) {
+                            Row(modifier = Modifier.fillMaxSize()) {
+                                // Column 1: Arabic Snippet
+                                LazyColumn(
+                                    state = hizbListState,
+                                    modifier = Modifier
+                                        .weight(2f)
+                                        .fillMaxHeight()
+                                ) {
+                                    itemsIndexed(QuranData.hizbList) { idx, hizb ->
+                                        val isSelected = hizb.number == selectedHizbNumber
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    selectedHizbNumber = hizb.number
+                                                    hizbNoInput = hizb.number.toString()
+                                                    hizbSearchInput = hizb.startSurahName
+                                                }
+                                                .background(if (isSelected) IslamicEmeraldPrimary.copy(alpha = 0.14f) else Color.Transparent)
+                                                .then(
+                                                    if (isSelected) Modifier.border(1.dp, IslamicEmeraldPrimary, RoundedCornerShape(4.dp))
+                                                    else Modifier
+                                                )
+                                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = hizb.arabicName,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isSelected) IslamicEmeraldPrimary else MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = "${hizb.startSurahName} (${hizb.quarter})",
+                                                    fontSize = 10.sp,
+                                                    color = Color.Gray
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                                // Column 2: Hizb Number
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .weight(0.8f)
+                                        .fillMaxHeight()
+                                ) {
+                                    items(QuranData.hizbList.size) { h ->
+                                        val hItem = QuranData.hizbList[h]
+                                        val isSelected = hItem.number == selectedHizbNumber
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    selectedHizbNumber = hItem.number
+                                                    hizbNoInput = hItem.number.toString()
+                                                }
+                                                .background(if (isSelected) IslamicEmeraldPrimary.copy(alpha = 0.14f) else Color.Transparent)
+                                                .then(
+                                                    if (isSelected) Modifier.border(1.dp, IslamicEmeraldPrimary, RoundedCornerShape(4.dp))
+                                                    else Modifier
+                                                )
+                                                .padding(vertical = 6.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "Hizb ${hItem.number}",
+                                                fontSize = 12.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (isSelected) IslamicEmeraldPrimary else MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(14.dp))
+            }
 
-                JumpSubject.RUKU -> {
-                    Card(
-                        shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Ruku $selectedRukuNumber (রুকু $selectedRukuNumber)",
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    )
-                                    Text(
-                                        text = "Starts: ${currentRukuInfo.startSurahName}",
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    )
-                                }
-                                Text(
-                                    text = "ركوع $selectedRukuNumber",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(14.dp))
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            // Text Input
-                            Text(
-                                text = "রুকু নম্বর লিখুন (Type Ruku Number):",
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+            // =========================================================================
+            // SECTION 4: Ruku Section (Matching Image 1 & 2 Blueprint)
+            // =========================================================================
+            if (selectedFilter == JumpSectionFilter.ALL || selectedFilter == JumpSectionFilter.RUKU) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                    border = BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.25f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text(
+                            text = "Ruku (রুকু)",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = IslamicEmeraldPrimary
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Top Row: [ Ruku ] [ No. ] [ Go to Ruku ]
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = rukuSearchInput,
+                                onValueChange = { input ->
+                                    rukuSearchInput = input
+                                    val match = QuranData.rukuList.find {
+                                        it.arabicSnippet.contains(input) || it.startSurahName.contains(input, ignoreCase = true)
+                                    }
+                                    if (match != null) {
+                                        selectedRukuNumber = match.rukuNumber
+                                        rukuNoInput = match.rukuNumber.toString()
+                                    }
+                                },
+                                placeholder = { Text("Ruku", fontSize = 11.sp) },
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier
+                                    .weight(1.2f)
+                                    .testTag("input_ruku_name")
+                            )
 
                             OutlinedTextField(
-                                value = rukuInput,
+                                value = rukuNoInput,
                                 onValueChange = { input ->
-                                    rukuInput = input
+                                    rukuNoInput = input
                                     val rNum = input.toIntOrNull()
                                     if (rNum != null && rNum in 1..556) {
                                         selectedRukuNumber = rNum
                                     }
                                 },
-                                label = { Text("রুকু নম্বর (১ - ৫৫৬)") },
+                                placeholder = { Text("1..2", fontSize = 11.sp) },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                                shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("jump_ruku_input"),
-                                shape = RoundedCornerShape(12.dp)
+                                    .weight(0.8f)
+                                    .testTag("input_ruku_no")
                             )
 
-                            Spacer(modifier = Modifier.height(18.dp))
-
-                            // Slider
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "স্লাইডার দিয়ে রুকু নির্বাচন:",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "রুকু $selectedRukuNumber / 556",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-
-                            Slider(
-                                value = selectedRukuNumber.toFloat(),
-                                onValueChange = { value ->
-                                    selectedRukuNumber = value.toInt().coerceIn(1, 556)
-                                    rukuInput = selectedRukuNumber.toString()
-                                },
-                                valueRange = 1f..556f,
-                                steps = 555,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.primaryContainer
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("jump_ruku_slider")
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // Dedicated Button
                             Button(
                                 onClick = {
                                     onNavigateToSurah(currentRukuInfo.startSurah, currentRukuInfo.startAyah)
                                     onDismiss()
                                 },
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
+                                contentPadding = PaddingValues(horizontal = 14.dp),
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp)
-                                    .testTag("go_to_ruku_button")
+                                    .height(44.dp)
+                                    .testTag("button_go_to_ruku")
                             ) {
-                                Icon(imageVector = Icons.Default.FormatListNumbered, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Go to Ruku (রুকুতে যান)",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
+                                Text("Go to Ruku", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // 2-Column Scrollable Picker: [ Arabic Snippet ] [ Ruku Number ]
+                        Card(
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                        ) {
+                            Row(modifier = Modifier.fillMaxSize()) {
+                                // Column 1: Arabic Snippet
+                                LazyColumn(
+                                    state = rukuListState,
+                                    modifier = Modifier
+                                        .weight(2f)
+                                        .fillMaxHeight()
+                                ) {
+                                    itemsIndexed(QuranData.rukuList) { idx, ruku ->
+                                        val isSelected = ruku.rukuNumber == selectedRukuNumber
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    selectedRukuNumber = ruku.rukuNumber
+                                                    rukuNoInput = ruku.rukuNumber.toString()
+                                                    rukuSearchInput = ruku.startSurahName
+                                                }
+                                                .background(if (isSelected) IslamicEmeraldPrimary.copy(alpha = 0.14f) else Color.Transparent)
+                                                .then(
+                                                    if (isSelected) Modifier.border(1.dp, IslamicEmeraldPrimary, RoundedCornerShape(4.dp))
+                                                    else Modifier
+                                                )
+                                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = ruku.arabicSnippet,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isSelected) IslamicEmeraldPrimary else MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = ruku.startSurahName,
+                                                    fontSize = 10.sp,
+                                                    color = Color.Gray
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                                // Column 2: Ruku Number
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .weight(0.8f)
+                                        .fillMaxHeight()
+                                ) {
+                                    items(QuranData.rukuList.size) { r ->
+                                        val rNum = r + 1
+                                        val isSelected = rNum == selectedRukuNumber
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    selectedRukuNumber = rNum
+                                                    rukuNoInput = rNum.toString()
+                                                }
+                                                .background(if (isSelected) IslamicEmeraldPrimary.copy(alpha = 0.14f) else Color.Transparent)
+                                                .then(
+                                                    if (isSelected) Modifier.border(1.dp, IslamicEmeraldPrimary, RoundedCornerShape(4.dp))
+                                                    else Modifier
+                                                )
+                                                .padding(vertical = 6.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "Ruku $rNum",
+                                                fontSize = 12.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (isSelected) IslamicEmeraldPrimary else MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+            }
+
+            // Explanatory note matching Image 2
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = "Info",
+                        tint = IslamicEmeraldPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "এই খালি box গুলোতে তাদের নির্দিষ্ট name কিংবা number লিখেও ইউজার তাদের গন্তব্যে যেতে পারবেন। slider গুলোর মাধ্যমেও তাদের নির্দিষ্ট name কিংবা number উপরে নিচে slid করে ইউজার তাদের গন্তব্যে যেতে পারবেন।",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.5.sp,
+                            lineHeight = 15.sp
+                        )
+                    )
                 }
             }
         }

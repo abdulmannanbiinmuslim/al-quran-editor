@@ -96,6 +96,15 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 80.dp)
         ) {
+            // 1. Hero Banner with Last Read & Daily Inspiring Ayahs
+            item {
+                AutoSlidingHeroBanner(
+                    lastRead = lastReadList.firstOrNull(),
+                    onResumeRead = { item -> onSurahClick(item.surahNumber, item.ayahNumber) },
+                    onAyahClick = { surahNum, ayahNum -> onSurahClick(surahNum, ayahNum) }
+                )
+            }
+
             // 2. Featured Reciters (জনপ্রিয় ক্বারীগণ) with Avatar Badges & Glowing Floating Shadow
             item {
                 Column(modifier = Modifier.padding(top = 10.dp, bottom = 8.dp)) {

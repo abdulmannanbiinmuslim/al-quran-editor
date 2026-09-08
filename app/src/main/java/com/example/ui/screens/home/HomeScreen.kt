@@ -4,13 +4,13 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -22,9 +22,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -38,15 +38,12 @@ import com.example.data.model.SurahItem
 import com.example.data.model.WeeklyReadingSummary
 import com.example.data.repository.QuranData
 import com.example.data.repository.RecitersData
+import com.example.ui.components.HomeHeroBanner
 import com.example.ui.components.HomeReciterCarouselCard
-import com.example.ui.components.ReadingProgressChartCard
-import com.example.ui.components.ReciterAvatarBadge
 import com.example.ui.theme.*
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.yield
+import kotlin.math.abs
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
     activeSubTab: ReadingViewMode,
@@ -70,160 +67,190 @@ fun HomeScreen(
         "AL-IKHLAS" to 112
     )
 
-    val defaultWeeklySummary = weeklyReadingSummary ?: WeeklyReadingSummary(
-        metrics = listOf(
-            DailyVersesMetric(dayOfWeek = "Sun", dateLabel = "17 Aug", versesCount = 28, minutesSpent = 15, goalVerses = 30),
-            DailyVersesMetric(dayOfWeek = "Mon", dateLabel = "18 Aug", versesCount = 45, minutesSpent = 28, goalVerses = 30),
-            DailyVersesMetric(dayOfWeek = "Tue", dateLabel = "19 Aug", versesCount = 18, minutesSpent = 10, goalVerses = 30),
-            DailyVersesMetric(dayOfWeek = "Wed", dateLabel = "20 Aug", versesCount = 56, minutesSpent = 35, goalVerses = 30),
-            DailyVersesMetric(dayOfWeek = "Thu", dateLabel = "21 Aug", versesCount = 38, minutesSpent = 22, goalVerses = 30),
-            DailyVersesMetric(dayOfWeek = "Fri", dateLabel = "22 Aug", versesCount = 85, minutesSpent = 50, goalVerses = 30),
-            DailyVersesMetric(dayOfWeek = "Sat", dateLabel = "23 Aug", versesCount = 42, minutesSpent = 26, goalVerses = 30)
-        ),
-        streakDays = 6,
-        totalVersesThisWeek = 312,
-        averageVersesPerDay = 44,
-        totalMinutesThisWeek = 186,
-        goalVersesDaily = 30
-    )
+    val listState = rememberLazyListState()
 
-    Column(
+    // When tab changes, if user was scrolled past the header, maintain position at sticky tab
+    LaunchedEffect(activeSubTab) {
+        if (listState.firstVisibleItemIndex > 4) {
+            listState.scrollToItem(4)
+        }
+    }
+
+    val filteredSurahs = remember(QuranData.surahs, searchQuery) {
+        QuranData.surahs.filter {
+            if (searchQuery.isBlank()) true
+            else it.englishName.contains(searchQuery, ignoreCase = true) ||
+                    it.banglaTranslation.contains(searchQuery, ignoreCase = true) ||
+                    it.number.toString() == searchQuery.trim()
+        }
+    }
+
+    val displayLastRead = remember(lastReadList) {
+        lastReadList.take(10)
+    }
+
+    LazyColumn(
+        state = listState,
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-    ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 80.dp)
-        ) {
-            // 1. Featured Reciters (জনপ্রিয় ক্বারীগণ) with Avatar Badges & Glowing Floating Shadow
-            item {
-                Column(modifier = Modifier.padding(top = 10.dp, bottom = 8.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.SpatialAudioOff,
-                                contentDescription = null,
-                                tint = IslamicEmeraldPrimary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "জনপ্রিয় ক্বারীগণ (${RecitersData.recitersList.size} Reciters)",
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            )
+            .pointerInput(activeSubTab) {
+                var totalDragX = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { totalDragX = 0f },
+                    onDragEnd = {
+                        if (totalDragX < -70f) {
+                            // Swiped Left -> Next Tab (সূরা -> পৃষ্ঠা -> পারা -> হিযব -> রুকু)
+                            val nextIdx = (activeSubTab.ordinal + 1).coerceAtMost(ReadingViewMode.values().size - 1)
+                            onSubTabChange(ReadingViewMode.values()[nextIdx])
+                        } else if (totalDragX > 70f) {
+                            // Swiped Right -> Previous Tab
+                            val prevIdx = (activeSubTab.ordinal - 1).coerceAtLeast(0)
+                            onSubTabChange(ReadingViewMode.values()[prevIdx])
+                        }
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        totalDragX += dragAmount
+                        if (abs(totalDragX) > 35f) {
+                            change.consume()
                         }
                     }
+                )
+            },
+        contentPadding = PaddingValues(bottom = 90.dp)
+    ) {
+        // 1. New Refined Auto-Sliding Hero Banner (No broken lines, full text displayed)
+        item(key = "hero_banner") {
+            HomeHeroBanner(
+                lastRead = lastReadList.firstOrNull(),
+                onResumeRead = { onSurahClick(it.surahNumber, it.ayahNumber) },
+                onAyahClick = onSurahClick,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        }
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(RecitersData.recitersList) { reciter ->
-                            HomeReciterCarouselCard(
-                                reciter = reciter,
-                                onClick = { onReciterClick(reciter) },
-                                modifier = Modifier.testTag("reciter_card_${reciter.name}")
+        // 2. Featured Reciters (জনপ্রিয় ক্বারীগণ)
+        item(key = "featured_reciters") {
+            Column(modifier = Modifier.padding(top = 4.dp, bottom = 6.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.SpatialAudioOff,
+                            contentDescription = null,
+                            tint = IslamicEmeraldPrimary,
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "জনপ্রিয় ক্বারীগণ (${RecitersData.recitersList.size} Reciters)",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
-                        }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(RecitersData.recitersList) { reciter ->
+                        HomeReciterCarouselCard(
+                            reciter = reciter,
+                            onClick = { onReciterClick(reciter) },
+                            modifier = Modifier.testTag("reciter_card_${reciter.name}")
+                        )
                     }
                 }
             }
+        }
 
-            // 3. Quick Access Surahs (পছন্দের সূরাসমূহ)
-            item {
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+        // 3. Quick Access Surahs (Quick Links)
+        item(key = "quick_links") {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.FlashOn,
+                        contentDescription = null,
+                        tint = QuranGold,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Quick Links",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(quickLinks) { (title, surahNum) ->
+                        SuggestionChip(
+                            onClick = { onSurahClick(surahNum, 1) },
+                            label = {
+                                Text(
+                                    text = title,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            },
+                            colors = SuggestionChipDefaults.suggestionChipColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                                labelColor = MaterialTheme.colorScheme.primary
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.testTag("quick_link_$title")
+                        )
+                    }
+                }
+            }
+        }
+
+        // 4. Last Read (সর্বশেষ পঠিত)
+        if (displayLastRead.isNotEmpty()) {
+            item(key = "last_read") {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Icon(
-                            imageVector = Icons.Outlined.FlashOn,
+                            imageVector = Icons.Outlined.History,
                             contentDescription = null,
-                            tint = QuranGold,
-                            modifier = Modifier.size(16.dp)
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(15.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Quick Links",
+                            text = "Last Read",
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
 
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(quickLinks) { (title, surahNum) ->
-                            SuggestionChip(
-                                onClick = { onSurahClick(surahNum, 1) },
-                                label = {
-                                    Text(
-                                        text = title,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                },
-                                colors = SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                                    labelColor = MaterialTheme.colorScheme.primary
-                                ),
-                                border = androidx.compose.foundation.BorderStroke(
-                                    1.dp,
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.testTag("quick_link_$title")
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 3.5 Last Read (সর্বশেষ পঠিত সূরা) - Horizontal Scrollable Row matching Quick Links
-            item {
-                val displayLastRead = remember(lastReadList) {
-                    lastReadList.take(10)
-                }
-
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Outlined.History,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Last Read",
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -256,118 +283,111 @@ fun HomeScreen(
                     }
                 }
             }
+        }
 
-            // 4. M3 Expressive Secondary Tab Bar (Surah, Page, Juz, Hizb, Ruku)
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Surface(
-                    color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 1.dp,
+        // 5. STICKY SECONDARY TAB ROW ( সূরা, পৃষ্ঠা, পারা, হিযব, রুকু )
+        stickyHeader(key = "sticky_tab_row") {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 3.dp,
+                tonalElevation = 2.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                SecondaryTabRow(
+                    selectedTabIndex = activeSubTab.ordinal,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = IslamicEmeraldPrimary,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    SecondaryTabRow(
-                        selectedTabIndex = activeSubTab.ordinal,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = IslamicEmeraldPrimary,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        ReadingViewMode.values().forEach { mode ->
-                            val isSelected = activeSubTab == mode
-                            val label = when (mode) {
-                                ReadingViewMode.SURAH -> "সূরা"
-                                ReadingViewMode.PAGE -> "পৃষ্ঠা"
-                                ReadingViewMode.JUZ -> "পারা"
-                                ReadingViewMode.HIZB -> "হিজব"
-                                ReadingViewMode.RUKU -> "রুকু"
-                            }
-
-                            Tab(
-                                selected = isSelected,
-                                onClick = { onSubTabChange(mode) },
-                                text = {
-                                    Text(
-                                        text = label,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        fontSize = 13.sp
-                                    )
-                                },
-                                selectedContentColor = IslamicEmeraldPrimary,
-                                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.testTag("home_subtab_$label")
-                            )
+                    ReadingViewMode.values().forEach { mode ->
+                        val isSelected = activeSubTab == mode
+                        val label = when (mode) {
+                            ReadingViewMode.SURAH -> "সূরা"
+                            ReadingViewMode.PAGE -> "পৃষ্ঠা"
+                            ReadingViewMode.JUZ -> "পারা"
+                            ReadingViewMode.HIZB -> "হিযব"
+                            ReadingViewMode.RUKU -> "রুকু"
                         }
+
+                        Tab(
+                            selected = isSelected,
+                            onClick = { onSubTabChange(mode) },
+                            text = {
+                                Text(
+                                    text = label,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 13.5.sp
+                                )
+                            },
+                            selectedContentColor = IslamicEmeraldPrimary,
+                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.testTag("home_subtab_$label")
+                        )
                     }
                 }
             }
+        }
 
-            // 5. Vertical Content List Based on Selected Sub Tab
-            when (activeSubTab) {
-                ReadingViewMode.SURAH -> {
-                    val filteredSurahs = QuranData.surahs.filter {
-                        if (searchQuery.isBlank()) true
-                        else it.englishName.contains(searchQuery, ignoreCase = true) ||
-                                it.banglaTranslation.contains(searchQuery, ignoreCase = true) ||
-                                it.number.toString() == searchQuery.trim()
-                    }
-
-                    items(filteredSurahs) { surah ->
-                        ModernSurahCard(
-                            surah = surah,
-                            onClick = { onSurahClick(surah.number, 1) }
-                        )
-                    }
+        // 6. Complete Lists for Active Tab (No cutoffs, all items render completely)
+        when (activeSubTab) {
+            ReadingViewMode.SURAH -> {
+                items(filteredSurahs, key = { "surah_${it.number}" }) { surah ->
+                    ModernSurahCard(
+                        surah = surah,
+                        onClick = { onSurahClick(surah.number, 1) }
+                    )
                 }
+            }
 
-                ReadingViewMode.PAGE -> {
-                    items(QuranData.pageList) { page ->
-                        PageListItem(
-                            page = page,
-                            onClick = { onSurahClick(page.startSurah, page.startAyah) }
-                        )
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
+            ReadingViewMode.PAGE -> {
+                items(QuranData.pageList, key = { "page_${it.pageNumber}" }) { page ->
+                    PageListItem(
+                        page = page,
+                        onClick = { onSurahClick(page.startSurah, page.startAyah) }
+                    )
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
                 }
+            }
 
-                ReadingViewMode.JUZ -> {
-                    items(QuranData.juzList) { juz ->
-                        JuzListItem(
-                            juz = juz,
-                            onClick = { onSurahClick(juz.startSurah, juz.startAyah) }
-                        )
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
+            ReadingViewMode.JUZ -> {
+                items(QuranData.juzList, key = { "juz_${it.number}" }) { juz ->
+                    JuzListItem(
+                        juz = juz,
+                        onClick = { onSurahClick(juz.startSurah, juz.startAyah) }
+                    )
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
                 }
+            }
 
-                ReadingViewMode.HIZB -> {
-                    items(QuranData.hizbList) { hizb ->
-                        HizbListItem(
-                            hizb = hizb,
-                            onClick = { onSurahClick(hizb.startSurah, hizb.startAyah) }
-                        )
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
+            ReadingViewMode.HIZB -> {
+                itemsIndexed(QuranData.hizbList, key = { index, hizb -> "hizb_${hizb.number}_${hizb.quarter}_$index" }) { _, hizb ->
+                    HizbListItem(
+                        hizb = hizb,
+                        onClick = { onSurahClick(hizb.startSurah, hizb.startAyah) }
+                    )
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
                 }
+            }
 
-                ReadingViewMode.RUKU -> {
-                    items(QuranData.rukuList) { ruku ->
-                        RukuListItem(
-                            ruku = ruku,
-                            onClick = { onSurahClick(ruku.startSurah, ruku.startAyah) }
-                        )
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                    }
+            ReadingViewMode.RUKU -> {
+                itemsIndexed(QuranData.rukuList, key = { index, ruku -> "ruku_${ruku.rukuNumber}_$index" }) { _, ruku ->
+                    RukuListItem(
+                        ruku = ruku,
+                        onClick = { onSurahClick(ruku.startSurah, ruku.startAyah) }
+                    )
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
                 }
             }
         }

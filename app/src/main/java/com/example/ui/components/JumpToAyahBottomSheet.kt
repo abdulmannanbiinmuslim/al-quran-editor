@@ -188,6 +188,14 @@ fun JumpToAyahBottomSheet(
     var ayahInput by remember { mutableStateOf("1") }
     var pageInput by remember { mutableStateOf("1") }
 
+    // Direct number quick jump inputs for the ALL tab (as demonstrated in user video)
+    var allSurahInput by remember { mutableStateOf("1") }
+    var allAyahInput by remember { mutableStateOf("1") }
+    var allPageInput by remember { mutableStateOf("1") }
+    var allJuzInput by remember { mutableStateOf("1") }
+    var allHizbInput by remember { mutableStateOf("1") }
+    var allRukuInput by remember { mutableStateOf("1") }
+
     val currentSurah = remember(selectedSurahNumber) {
         QuranData.surahs.getOrNull(selectedSurahNumber - 1) ?: QuranData.surahs[0]
     }
@@ -373,9 +381,267 @@ fun JumpToAyahBottomSheet(
             Spacer(modifier = Modifier.height(14.dp))
 
             // =========================================================================
+            // TAB: ALL (Compact Direct-Number Quick Jump Layout as shown in user video)
+            // =========================================================================
+            if (selectedFilter == JumpSectionFilter.ALL) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // 1. Surah & Ayah
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                        border = BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "Surah & Ayah",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = IslamicEmeraldPrimary,
+                                    fontSize = 14.sp
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = allSurahInput,
+                                    onValueChange = { allSurahInput = it },
+                                    label = { Text("Surah (1-114)", fontSize = 10.5.sp) },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier
+                                        .weight(1.1f)
+                                        .testTag("all_input_surah")
+                                )
+
+                                OutlinedTextField(
+                                    value = allAyahInput,
+                                    onValueChange = { allAyahInput = it },
+                                    label = { Text("Ayah", fontSize = 10.5.sp) },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier
+                                        .weight(0.9f)
+                                        .testTag("all_input_ayah")
+                                )
+
+                                Button(
+                                    onClick = {
+                                        val sNum = (allSurahInput.toIntOrNull() ?: 1).coerceIn(1, 114)
+                                        val totalAyahs = QuranData.surahs[sNum - 1].totalAyahs
+                                        val aNum = (allAyahInput.toIntOrNull() ?: 1).coerceIn(1, totalAyahs)
+                                        onNavigateToSurah(sNum, aNum)
+                                        onDismiss()
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
+                                    contentPadding = PaddingValues(horizontal = 14.dp),
+                                    modifier = Modifier
+                                        .height(52.dp)
+                                        .testTag("all_button_go_to_surah")
+                                ) {
+                                    Text("Go to Surah", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. Page (1-604)
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                        border = BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = allPageInput,
+                                    onValueChange = { allPageInput = it },
+                                    label = { Text("Page (1-604)", fontSize = 10.5.sp) },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("all_input_page")
+                                )
+
+                                Button(
+                                    onClick = {
+                                        val pNum = (allPageInput.toIntOrNull() ?: 1).coerceIn(1, 604)
+                                        val pageInfo = QuranData.pageList.getOrNull(pNum - 1) ?: QuranData.pageList[0]
+                                        onNavigateToSurah(pageInfo.startSurah, pageInfo.startAyah)
+                                        onDismiss()
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    modifier = Modifier
+                                        .height(52.dp)
+                                        .testTag("all_button_go_to_page")
+                                ) {
+                                    Text("Go to Page", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. Juz (1-30)
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                        border = BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = allJuzInput,
+                                    onValueChange = { allJuzInput = it },
+                                    label = { Text("Juz (1-30)", fontSize = 10.5.sp) },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("all_input_juz")
+                                )
+
+                                Button(
+                                    onClick = {
+                                        val jNum = (allJuzInput.toIntOrNull() ?: 1).coerceIn(1, 30)
+                                        val juzInfo = QuranData.juzList.getOrNull(jNum - 1) ?: QuranData.juzList[0]
+                                        onNavigateToSurah(juzInfo.startSurah, juzInfo.startAyah)
+                                        onDismiss()
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
+                                    contentPadding = PaddingValues(horizontal = 18.dp),
+                                    modifier = Modifier
+                                        .height(52.dp)
+                                        .testTag("all_button_go_to_juz")
+                                ) {
+                                    Text("Go to Juz", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    // 4. Hizb (1-60)
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                        border = BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = allHizbInput,
+                                    onValueChange = { allHizbInput = it },
+                                    label = { Text("Hizb (1-60)", fontSize = 10.5.sp) },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("all_input_hizb")
+                                )
+
+                                Button(
+                                    onClick = {
+                                        val hNum = (allHizbInput.toIntOrNull() ?: 1).coerceIn(1, 60)
+                                        val hizbInfo = QuranData.hizbList.firstOrNull { it.number == hNum } ?: QuranData.hizbList[0]
+                                        onNavigateToSurah(hizbInfo.startSurah, hizbInfo.startAyah)
+                                        onDismiss()
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    modifier = Modifier
+                                        .height(52.dp)
+                                        .testTag("all_button_go_to_hizb")
+                                ) {
+                                    Text("Go to Hizb", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    // 5. Ruku (1-556)
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                        border = BorderStroke(1.dp, IslamicEmeraldPrimary.copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = allRukuInput,
+                                    onValueChange = { allRukuInput = it },
+                                    label = { Text("Ruku (1-556)", fontSize = 10.5.sp) },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("all_input_ruku")
+                                )
+
+                                Button(
+                                    onClick = {
+                                        val rNum = (allRukuInput.toIntOrNull() ?: 1).coerceIn(1, 556)
+                                        val rukuInfo = QuranData.rukuList.getOrNull(rNum - 1) ?: QuranData.rukuList[0]
+                                        onNavigateToSurah(rukuInfo.startSurah, rukuInfo.startAyah)
+                                        onDismiss()
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = IslamicEmeraldPrimary),
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    modifier = Modifier
+                                        .height(52.dp)
+                                        .testTag("all_button_go_to_ruku")
+                                ) {
+                                    Text("Go to Ruku", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+            }
+
+            // =========================================================================
             // SECTION 1: Surah, Ayah, Page (3-Column Sticky Wheel Slider)
             // =========================================================================
-            if (selectedFilter == JumpSectionFilter.ALL || selectedFilter == JumpSectionFilter.SURAH_PAGE) {
+            if (selectedFilter == JumpSectionFilter.SURAH_PAGE) {
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
@@ -744,7 +1010,7 @@ fun JumpToAyahBottomSheet(
             // =========================================================================
             // SECTION 2: Juz Section (2-Column Sticky Wheel Slider)
             // =========================================================================
-            if (selectedFilter == JumpSectionFilter.ALL || selectedFilter == JumpSectionFilter.JUZ) {
+            if (selectedFilter == JumpSectionFilter.JUZ) {
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
@@ -907,7 +1173,7 @@ fun JumpToAyahBottomSheet(
             // =========================================================================
             // SECTION 3: Hizb Section (2-Column Sticky Wheel Slider)
             // =========================================================================
-            if (selectedFilter == JumpSectionFilter.ALL || selectedFilter == JumpSectionFilter.HIZB) {
+            if (selectedFilter == JumpSectionFilter.HIZB) {
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
@@ -1070,7 +1336,7 @@ fun JumpToAyahBottomSheet(
             // =========================================================================
             // SECTION 4: Ruku Section (2-Column Sticky Wheel Slider)
             // =========================================================================
-            if (selectedFilter == JumpSectionFilter.ALL || selectedFilter == JumpSectionFilter.RUKU) {
+            if (selectedFilter == JumpSectionFilter.RUKU) {
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
@@ -1230,32 +1496,34 @@ fun JumpToAyahBottomSheet(
                 Spacer(modifier = Modifier.height(14.dp))
             }
 
-            // Explanatory note matching user's design blueprint
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            if (selectedFilter != JumpSectionFilter.ALL) {
+                // Explanatory note matching user's design blueprint
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Info,
-                        contentDescription = "Info",
-                        tint = IslamicEmeraldPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "এই খালি box গুলোতে তাদের নির্দিষ্ট name কিংবা number লিখেও ইউজার তাদের গন্তব্যে যেতে পারবেন। slider গুলোর মাঝে থাকা স্টিকি লাইনে স্ক্রোল করে নির্দিষ্ট নাম বা নম্বর সিলেক্ট করেও সরাসরি গন্তব্যে যেতে পারবেন।",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.5.sp,
-                            lineHeight = 15.sp
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = "Info",
+                            tint = IslamicEmeraldPrimary,
+                            modifier = Modifier.size(18.dp)
                         )
-                    )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "এই খালি box গুলোতে তাদের নির্দিষ্ট name কিংবা number লিখেও ইউজার তাদের গন্তব্যে যেতে পারবেন। slider গুলোর মাঝে থাকা স্টিকি লাইনে স্ক্রোল করে নির্দিষ্ট নাম বা নম্বর সিলেক্ট করেও সরাসরি গন্তব্যে যেতে পারবেন।",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 11.5.sp,
+                                lineHeight = 15.sp
+                            )
+                        )
+                    }
                 }
             }
         }

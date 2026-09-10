@@ -10,6 +10,7 @@ import com.example.data.model.ReciterItem
 import com.example.data.model.RecitationMode
 import com.example.data.repository.QuranData
 import com.example.data.repository.RecitersData
+import com.example.data.timing.SurahTimingData
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,6 +51,8 @@ class AudioPlayerManager(private val context: Context) {
 
     private var playlistAyahs: List<AyahItem> = emptyList()
     private var currentPlaylistIndex: Int = 0
+    private var currentSurahTiming: SurahTimingData? = null
+    private var isPlayingSurahFile: Boolean = false
 
     init {
         setupMediaPlayer()
@@ -126,12 +129,38 @@ class AudioPlayerManager(private val context: Context) {
                                 val pos = mp.currentPosition.toLong().coerceAtLeast(0L)
                                 val dur = mp.duration.toLong().coerceAtLeast(1L)
                                 val curAyah = _playerState.value.currentAyah
-                                val wordIdx = if (curAyah != null && curAyah.words.isNotEmpty() && dur > 0) {
-                                    ((pos.toFloat() / dur) * curAyah.words.size).toInt().coerceIn(0, curAyah.words.size - 1)
-                                } else -1
-                                val letterIdx = if (curAyah != null && curAyah.textUthmani.isNotEmpty() && dur > 0) {
-                                    ((pos.toFloat() / dur) * curAyah.textUthmani.length).toInt().coerceIn(0, curAyah.textUthmani.length - 1)
-                                } else -1
+                                val timing = currentSurahTiming
+                                val wordIdx: Int
+                                val letterIdx: Int
+
+                                if (timing != null) {
+                                    val (actAyahNum, wIdx, lIdx) = downloadManager.timingRepository.findActiveElements(
+                                        surahTiming = timing,
+                                        positionMs = pos,
+                                        currentAyahNumber = curAyah?.ayahNumberInSurah,
+                                        isSurahFullAudio = isPlayingSurahFile
+                                    )
+                                    wordIdx = wIdx
+                                    letterIdx = lIdx
+
+                                    // In continuous surah playback, dynamically synchronize active ayah
+                                    if (isPlayingSurahFile && curAyah != null && actAyahNum != curAyah.ayahNumberInSurah) {
+                                        val newAyah = playlistAyahs.find { it.ayahNumberInSurah == actAyahNum }
+                                        if (newAyah != null) {
+                                            _playerState.value = _playerState.value.copy(
+                                                currentAyahNumber = actAyahNum,
+                                                currentAyah = newAyah
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    wordIdx = if (curAyah != null && curAyah.words.isNotEmpty() && dur > 0) {
+                                        ((pos.toFloat() / dur) * curAyah.words.size).toInt().coerceIn(0, curAyah.words.size - 1)
+                                    } else -1
+                                    letterIdx = if (curAyah != null && curAyah.textUthmani.isNotEmpty() && dur > 0) {
+                                        ((pos.toFloat() / dur) * curAyah.textUthmani.length).toInt().coerceIn(0, curAyah.textUthmani.length - 1)
+                                    } else -1
+                                }
 
                                 _playerState.value = _playerState.value.copy(
                                     currentPositionMs = pos,
@@ -240,6 +269,91 @@ class AudioPlayerManager(private val context: Context) {
         playCurrentAyahFromPlaylist()
     }
 
+    /**
+     * Play full continuous surah stream with live synchronized word, letter, and ayah tracking.
+     */
+    fun playFullSurah(
+        surahNumber: Int,
+        reciter: ReciterItem,
+        startAyah: Int = 1
+    ) {
+        val allAyahs = QuranData.getAyahsForSurah(surahNumber)
+        if (allAyahs.isEmpty()) return
+
+        playlistAyahs = allAyahs
+        currentPlaylistIndex = (startAyah - 1).coerceIn(0, allAyahs.size - 1)
+        isPlayingSurahFile = true
+
+        val initialAyah = allAyahs[currentPlaylistIndex]
+
+        stopProgressTicker()
+        isPrepared = false
+
+        _playerState.value = _playerState.value.copy(
+            currentSurahNumber = surahNumber,
+            currentReciter = reciter,
+            currentAyahNumber = initialAyah.ayahNumberInSurah,
+            currentAyah = initialAyah,
+            startAyahRange = 1,
+            endAyahRange = allAyahs.size,
+            repeatAyahTimes = 0,
+            repeatAyahRemaining = 0,
+            hasPrevious = false,
+            hasNext = false,
+            isBuffering = true,
+            isPlaying = false,
+            recitationMode = RecitationMode.SURAH_BY_SURAH,
+            errorMessage = null
+        )
+
+        scope.launch {
+            try {
+                currentSurahTiming = downloadManager.timingRepository.getSurahTiming(reciter, surahNumber)
+            } catch (e: Exception) {
+                Log.w("AudioPlayerManager", "Failed to load timing: ${e.message}")
+            }
+        }
+
+        val localSurahFile = downloadManager.getLocalAudioFile(reciter, surahNumber)
+        val audioSource = if (localSurahFile != null && localSurahFile.exists() && localSurahFile.length() > 2048) {
+            localSurahFile.absolutePath
+        } else {
+            val jsonSurahUrl = runBlocking {
+                try {
+                    downloadManager.timingRepository.getSurahAudioUrl(reciter, surahNumber)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            jsonSurahUrl ?: RecitersData.getSurahFullAudioUrl(reciter, surahNumber)
+        }
+
+        try {
+            if (mediaPlayer == null) {
+                setupMediaPlayer()
+            }
+            mediaPlayer?.let { mp ->
+                mp.reset()
+                mp.setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .build()
+                )
+                mp.setDataSource(audioSource)
+                mp.prepareAsync()
+            }
+        } catch (e: Exception) {
+            Log.e("AudioPlayerManager", "Failed to load full surah audio: ${e.message}")
+            isPrepared = false
+            _playerState.value = _playerState.value.copy(
+                isBuffering = false,
+                isPlaying = false,
+                errorMessage = "Surah audio stream error"
+            )
+        }
+    }
+
     private fun playCurrentAyahFromPlaylist() {
         if (currentPlaylistIndex !in playlistAyahs.indices) {
             stopAudio()
@@ -248,14 +362,31 @@ class AudioPlayerManager(private val context: Context) {
 
         stopProgressTicker()
         isPrepared = false
+        isPlayingSurahFile = false
 
         val ayah = playlistAyahs[currentPlaylistIndex]
         val reciter = _playerState.value.currentReciter
+
+        scope.launch {
+            try {
+                currentSurahTiming = downloadManager.timingRepository.getSurahTiming(reciter, ayah.surahNumber)
+            } catch (e: Exception) {
+                Log.w("AudioPlayerManager", "Failed to load timing: ${e.message}")
+            }
+        }
+
         val localFile = downloadManager.getLocalAudioFile(reciter, ayah.surahNumber, ayah.ayahNumberInSurah)
         val audioSource = if (localFile != null && localFile.exists() && localFile.length() > 512) {
             localFile.absolutePath
         } else {
-            RecitersData.getAudioUrl(reciter, ayah.surahNumber, ayah.ayahNumberInSurah)
+            val jsonUrl = runBlocking {
+                try {
+                    downloadManager.timingRepository.getAyahAudioUrl(reciter, ayah.surahNumber, ayah.ayahNumberInSurah)
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            jsonUrl ?: RecitersData.getAudioUrl(reciter, ayah.surahNumber, ayah.ayahNumberInSurah)
         }
 
         _playerState.value = _playerState.value.copy(

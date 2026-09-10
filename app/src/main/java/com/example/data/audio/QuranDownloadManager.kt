@@ -5,6 +5,7 @@ import android.util.Log
 import com.example.data.model.ReciterItem
 import com.example.data.repository.QuranData
 import com.example.data.repository.RecitersData
+import com.example.data.timing.ReciterTimingRepository
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,6 +37,8 @@ class QuranDownloadManager(private val context: Context) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val activeDownloadJobs = ConcurrentHashMap<Int, Job>()
     private var bulkJob: Job? = null
+
+    val timingRepository = ReciterTimingRepository(context)
 
     private val _downloadMode = MutableStateFlow(DownloadMode.AYAH_BY_AYAH)
     val downloadMode = _downloadMode.asStateFlow()
@@ -187,8 +190,9 @@ class QuranDownloadManager(private val context: Context) {
                     val destinationFile = File(dir, "$s.mp3")
                     val tempFile = File(dir, "$s.mp3.tmp")
 
-                    // Attempt primary EveryAyah / MP3Quran URL
-                    val primaryUrl = RecitersData.getSurahFullAudioUrl(reciter, surahNumber)
+                    // Attempt primary URL: check JSON metadata first (e.g. tarteel audio-cdn URL), then EveryAyah
+                    val jsonSurahUrl = timingRepository.getSurahAudioUrl(reciter, surahNumber)
+                    val primaryUrl = jsonSurahUrl ?: RecitersData.getSurahFullAudioUrl(reciter, surahNumber)
                     val success = downloadSingleFile(primaryUrl, tempFile) { progress, downloadedBytes, totalBytes ->
                         updateSurahStatus(
                             surahNumber,
@@ -203,6 +207,11 @@ class QuranDownloadManager(private val context: Context) {
                     if (success && tempFile.exists() && tempFile.length() > 1024) {
                         tempFile.renameTo(destinationFile)
                         updateSurahStatus(surahNumber, SurahDownloadStatus.Downloaded(destinationFile.length()))
+                        try {
+                            timingRepository.generateAndSaveReciterTimingFile(reciter, listOf(surahNumber))
+                        } catch (e: Exception) {
+                            Log.w("QuranDownloadManager", "Could not compile timing file: ${e.message}")
+                        }
                     } else {
                         // Try fallback URL if needed
                         val fallbackUrl = "https://server8.mp3quran.net/afs/$s.mp3"
@@ -219,6 +228,11 @@ class QuranDownloadManager(private val context: Context) {
                         if (fallbackSuccess && tempFile.exists() && tempFile.length() > 1024) {
                             tempFile.renameTo(destinationFile)
                             updateSurahStatus(surahNumber, SurahDownloadStatus.Downloaded(destinationFile.length()))
+                            try {
+                                timingRepository.generateAndSaveReciterTimingFile(reciter, listOf(surahNumber))
+                            } catch (e: Exception) {
+                                Log.w("QuranDownloadManager", "Could not compile timing file: ${e.message}")
+                            }
                         } else {
                             tempFile.delete()
                             updateSurahStatus(surahNumber, SurahDownloadStatus.Error("ডাউনলোড ব্যর্থ হয়েছে"))
@@ -247,7 +261,8 @@ class QuranDownloadManager(private val context: Context) {
                             continue
                         }
 
-                        val ayahAudioUrl = RecitersData.getAudioUrl(reciter, surahNumber, a)
+                        val jsonAyahUrl = timingRepository.getAyahAudioUrl(reciter, surahNumber, a)
+                        val ayahAudioUrl = jsonAyahUrl ?: RecitersData.getAudioUrl(reciter, surahNumber, a)
                         val ok = downloadSingleFile(ayahAudioUrl, tempFile) { _, _, _ -> }
                         if (ok && tempFile.exists() && tempFile.length() > 200) {
                             tempFile.renameTo(ayahFile)
@@ -271,6 +286,11 @@ class QuranDownloadManager(private val context: Context) {
 
                     if (successfullyDownloadedAyahs >= ayahsCount) {
                         updateSurahStatus(surahNumber, SurahDownloadStatus.Downloaded(totalSurahBytes))
+                        try {
+                            timingRepository.generateAndSaveReciterTimingFile(reciter, listOf(surahNumber))
+                        } catch (e: Exception) {
+                            Log.w("QuranDownloadManager", "Could not compile timing file: ${e.message}")
+                        }
                     } else if (isActive) {
                         updateSurahStatus(surahNumber, SurahDownloadStatus.Error("কিছু আয়াত ডাউনলোড হতে ব্যর্থ হয়েছে"))
                     }
@@ -414,6 +434,13 @@ class QuranDownloadManager(private val context: Context) {
                     completedSurahs++
                     _bulkProgress.value = completedSurahs.toFloat() / totalCount
                 }
+                if (completedSurahs > 0) {
+                    try {
+                        timingRepository.generateAndSaveReciterTimingFile(reciter, emptyList())
+                    } catch (e: Exception) {
+                        Log.w("QuranDownloadManager", "Could not generate bulk timing file: ${e.message}")
+                    }
+                }
             } catch (e: CancellationException) {
                 Log.d("QuranDownloadManager", "Bulk download cancelled")
             } finally {
@@ -421,6 +448,18 @@ class QuranDownloadManager(private val context: Context) {
                 refreshStatuses(reciter)
             }
         }
+    }
+
+    fun isReciterTimingSupported(reciter: ReciterItem): Boolean {
+        return timingRepository.isReciterSupported(reciter)
+    }
+
+    suspend fun generateAndExportTimingFile(reciter: ReciterItem, surahNumbers: List<Int> = emptyList()): File? {
+        return timingRepository.exportTimingFileToDownloads(reciter, surahNumbers)
+    }
+
+    fun getLocalTimingFile(reciter: ReciterItem): File {
+        return timingRepository.getLocalTimingFile(reciter)
     }
 
     fun cancelBulkDownload(reciter: ReciterItem) {

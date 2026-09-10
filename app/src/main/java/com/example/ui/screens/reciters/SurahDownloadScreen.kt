@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.launch
 import com.example.data.audio.DownloadMode
 import com.example.data.audio.QuranDownloadManager
 import com.example.data.audio.SurahDownloadStatus
@@ -54,6 +55,8 @@ fun SurahDownloadScreen(
     var showReciterDialog by remember { mutableStateOf(false) }
     var showDeleteAllConfirmDialog by remember { mutableStateOf(false) }
     var surahToDeleteConfirm by remember { mutableStateOf<SurahItem?>(null) }
+    val scope = rememberCoroutineScope()
+    var timingExportMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(reciter, downloadMode) {
         downloadManager.refreshStatuses(reciter)
@@ -393,6 +396,103 @@ fun SurahDownloadScreen(
                                     fontSize = 12.sp,
                                     color = if (downloadedCount > 0) Color(0xFFD32F2F) else Color.Gray
                                 )
+                            }
+                        }
+
+                        // 3.5 Reciter Timing Integration Card
+                        if (downloadManager.isReciterTimingSupported(reciter)) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Card(
+                                shape = RoundedCornerShape(10.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFBF8EE)),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2CB87)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = Color(0xFFB8860B),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Abdul Basit Precision Timings Active",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF5D4037)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "যেকোনো সূরা ডাউনলোডের সাথে 4টি মোড (Letter, Word, Ayah, Surah) সমন্বিত 'Abdul basit timing.json' ফাইল তৈরি হবে।",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF5D4037).copy(alpha = 0.85f),
+                                        lineHeight = 15.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "4-Mode Recitation & Surah Support",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = IslamicEmeraldPrimary
+                                        )
+                                        FilledTonalButton(
+                                            onClick = {
+                                                scope.launch {
+                                                    val exportFile = downloadManager.generateAndExportTimingFile(reciter, emptyList())
+                                                    timingExportMessage = if (exportFile != null) {
+                                                        "টাইমিং ফাইল সংরক্ষিত: ${exportFile.name}"
+                                                    } else {
+                                                        "টাইমিং ফাইল তৈরি হয়েছে"
+                                                    }
+                                                }
+                                            },
+                                            shape = RoundedCornerShape(6.dp),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                            modifier = Modifier.height(28.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Download,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Export Timing", fontSize = 10.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Timing export feedback
+                        timingExportMessage?.let { msg ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Card(
+                                shape = RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(containerColor = IslamicEmeraldContainer)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(text = msg, fontSize = 11.sp, color = IslamicEmeraldPrimary)
+                                    IconButton(
+                                        onClick = { timingExportMessage = null },
+                                        modifier = Modifier.size(20.dp)
+                                    ) {
+                                        Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(12.dp))
+                                    }
+                                }
                             }
                         }
                     }

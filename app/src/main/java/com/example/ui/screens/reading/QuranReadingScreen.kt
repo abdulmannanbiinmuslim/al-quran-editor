@@ -506,6 +506,7 @@ fun QuranReadingScreen(
                             ),
                             isPlaying = isCurrentlyPlaying,
                             activeWordIndex = if (isCurrentlyPlaying) audioState.activeWordIndex else -1,
+                            activeLetterIndex = if (isCurrentlyPlaying) audioState.activeLetterIndex else -1,
                             isFavorite = isFav,
                             isTafsirExpanded = isTafsirExpanded,
                             onToggleFavorite = {
@@ -728,6 +729,7 @@ private fun AyahCardItem(
     settings: ReadingSettings,
     isPlaying: Boolean,
     activeWordIndex: Int = -1,
+    activeLetterIndex: Int = -1,
     isFavorite: Boolean,
     isTafsirExpanded: Boolean,
     onToggleFavorite: () -> Unit,

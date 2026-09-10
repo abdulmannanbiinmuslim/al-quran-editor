@@ -210,9 +210,70 @@ enum class NightModeOption(
     SYSTEM("system", "System Default", "সিস্টেম অনুযায়ী (Auto)")
 }
 
+enum class RecitationMode(
+    val id: String,
+    val title: String,
+    val banglaTitle: String,
+    val subtitle: String,
+    val banglaSubtitle: String,
+    val description: String,
+    val banglaDescription: String,
+    val iconName: String,
+    val recommendedFor: String
+) {
+    LETTER_BY_LETTER(
+        id = "letter_by_letter",
+        title = "Letter-by-Letter",
+        banglaTitle = "বর্ণভিত্তিক (হরফ-বাই-হরফ)",
+        subtitle = "Tajweed & letter phonetics",
+        banglaSubtitle = "মাখরাজ ও প্রতিটি হরফের নিখুঁত উচ্চারণ",
+        description = "Segments each Arabic letter individually with harakat, makhraj focus, and pause pacing—perfect for beginner learners and children.",
+        banglaDescription = "প্রতিটি আরবি হরফ ও হরকত পৃথকভাবে উচ্চারণ ও মাখরাজ প্রদর্শনের মাধ্যমে তাজবীদ শিক্ষার জন্য আদর্শ মোড।",
+        iconName = "spellcheck",
+        recommendedFor = "তাজবীদ শিক্ষার্থী ও শিশু (Beginners & Makhraj)"
+    ),
+    WORD_BY_WORD(
+        id = "word_by_word",
+        title = "Word-by-Word",
+        banglaTitle = "শব্দভিত্তিক (লফজ-বাই-লফজ)",
+        subtitle = "Vocabulary & word meanings",
+        banglaSubtitle = "শব্দে শব্দে অর্থ ও উচ্চারণ গুরুত্ব",
+        description = "Recites and highlights verse words sequentially with bilingual meanings, fostering deep comprehension and memorization of Qur'anic vocabulary.",
+        banglaDescription = "আয়াতের প্রতিটি শব্দ ক্রমানুসারে অর্থসহ পৃথকভাবে তিলাওয়াত ও হাইলাইট করে কোরআনিক অর্থ গভীরভাবে বুঝতে সহায়তা করে।",
+        iconName = "translate",
+        recommendedFor = "অর্থ অনুধাবন ও হিফয (Vocabulary & Memorization)"
+    ),
+    AYAH_BY_AYAH(
+        id = "ayah_by_ayah",
+        title = "Ayah-by-Ayah",
+        banglaTitle = "আয়াতভিত্তিক (আয়াত-বাই-আয়াত)",
+        subtitle = "Standard verse-by-verse recitation",
+        banglaSubtitle = "স্ট্যান্ডার্ড আয়াতভিত্তিক তিলাওয়াত",
+        description = "The traditional recitation method with natural pauses at the end of each verse, ideal for daily Salah practice, repeats, and steady reading.",
+        banglaDescription = "প্রতিটি আয়াত শেষে বিরতিসহ ক্লাসিক্যাল আয়াতভিত্তিক তিলাওয়াত, যা নামাজ ও প্রাত্যহিক আমলের জন্য সবচেয়ে উপযোগী।",
+        iconName = "audiotrack",
+        recommendedFor = "নিয়মিত তিলাওয়াত ও সালাত চর্চা (Standard Daily Recitation)"
+    ),
+    SURAH_BY_SURAH(
+        id = "surah_by_surah",
+        title = "Surah-by-Surah",
+        banglaTitle = "সূরাভিত্তিক (পূর্ণ সূরা অবিচ্ছিন্ন প্রবাহ)",
+        subtitle = "Continuous uninterrupted stream",
+        banglaSubtitle = "একটানা সম্পূর্ণ সূরা তিলাওয়াত",
+        description = "Flows continuously through all verses without inter-verse pauses, offering an uninterrupted spiritual listening experience for Khatam and reflection.",
+        banglaDescription = "কোনো বিরতি ছাড়া সম্পূর্ণ সূরা একটানা মনমুগ্ধকর সুরে শুনুন—কুরআন শ্রবণ ও খতমের জন্য সেরা মোড।",
+        iconName = "library_books",
+        recommendedFor = "কুরআন শ্রবণ ও খতম (Continuous Listening & Khatam)"
+    )
+}
+
 data class ReadingSettings(
     val viewMode: ReadingViewMode = ReadingViewMode.SURAH,
     val layoutMode: ReadingLayoutMode = ReadingLayoutMode.LYRICS_AYAH_BY_AYAH,
+    val recitationMode: RecitationMode = RecitationMode.AYAH_BY_AYAH,
+    val wordPauseDurationMs: Long = 500L,
+    val letterPauseDurationMs: Long = 350L,
+    val autoAdvanceSurah: Boolean = true,
     val showArabic: Boolean = true,
     val showTranslation: Boolean = true,
     val showWordByWord: Boolean = false,

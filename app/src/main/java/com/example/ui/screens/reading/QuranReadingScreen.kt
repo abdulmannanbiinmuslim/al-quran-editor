@@ -84,6 +84,7 @@ fun QuranReadingScreen(
     onAddNoteClick: (AyahItem) -> Unit = {},
     onFontSizeChange: (Float) -> Unit = {},
     onSelectScriptStyle: (QuranFontFamily) -> Unit = {},
+    onOpenRecitationModeMenu: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -211,6 +212,20 @@ fun QuranReadingScreen(
                                     else
                                         Icons.Default.FormatAlignLeft,
                                     contentDescription = "Toggle Mode",
+                                    tint = Color.White
+                                )
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    haptics.tap()
+                                    onOpenRecitationModeMenu()
+                                },
+                                modifier = Modifier.testTag("reading_recitation_mode_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.RecordVoiceOver,
+                                    contentDescription = "Recitation Modes (${settings.recitationMode.banglaTitle})",
                                     tint = Color.White
                                 )
                             }
@@ -490,6 +505,7 @@ fun QuranReadingScreen(
                                 translationFontSizeSp = currentTranslationSize
                             ),
                             isPlaying = isCurrentlyPlaying,
+                            activeWordIndex = if (isCurrentlyPlaying) audioState.activeWordIndex else -1,
                             isFavorite = isFav,
                             isTafsirExpanded = isTafsirExpanded,
                             onToggleFavorite = {
@@ -711,6 +727,7 @@ private fun AyahCardItem(
     ayah: AyahItem,
     settings: ReadingSettings,
     isPlaying: Boolean,
+    activeWordIndex: Int = -1,
     isFavorite: Boolean,
     isTafsirExpanded: Boolean,
     onToggleFavorite: () -> Unit,
@@ -866,11 +883,15 @@ private fun AyahCardItem(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End
             ) {
-                ayah.words.forEach { word ->
+                ayah.words.forEachIndexed { idx, word ->
+                    val isWordActive = isPlaying && activeWordIndex == idx
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = IslamicEmeraldContainer.copy(alpha = 0.35f),
-                        border = androidx.compose.foundation.BorderStroke(0.5.dp, IslamicEmeraldPrimary.copy(alpha = 0.2f)),
+                        color = if (isWordActive) QuranGold.copy(alpha = 0.35f) else IslamicEmeraldContainer.copy(alpha = 0.35f),
+                        border = androidx.compose.foundation.BorderStroke(
+                            if (isWordActive) 1.5.dp else 0.5.dp,
+                            if (isWordActive) QuranGoldDark else IslamicEmeraldPrimary.copy(alpha = 0.2f)
+                        ),
                         modifier = Modifier.padding(3.dp)
                     ) {
                         Column(
@@ -883,12 +904,14 @@ private fun AyahCardItem(
                                     font = settings.selectedFont,
                                     fontSizeSp = 16f
                                 ),
-                                color = IslamicEmeraldPrimary
+                                color = if (isWordActive) QuranGoldDark else IslamicEmeraldPrimary,
+                                fontWeight = if (isWordActive) FontWeight.Bold else FontWeight.Normal
                             )
                             Text(
                                 text = word.bangla,
                                 fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (isWordActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = if (isWordActive) FontWeight.Bold else FontWeight.Normal
                             )
                         }
                     }

@@ -49,6 +49,7 @@ fun AudioManagerSheet(
     onRepeatCountChange: (Int) -> Unit,
     onOpenDownloadManager: (ReciterItem) -> Unit,
     onOpenTimingGenerator: () -> Unit,
+    onOpenRecitationModeMenu: () -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -293,6 +294,36 @@ fun AudioManagerSheet(
                                 )
                             }
                         }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Recitation Mode Setting
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("তিলাওয়াত মোড (Recitation Mode):", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text(
+                            text = "${audioState.recitationMode.banglaTitle} (${audioState.recitationMode.title})",
+                            fontSize = 11.sp,
+                            color = IslamicEmeraldPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    FilledTonalButton(
+                        onClick = {
+                            onDismiss()
+                            onOpenRecitationModeMenu()
+                        },
+                        colors = ButtonDefaults.filledTonalButtonColors(containerColor = IslamicEmeraldContainer)
+                    ) {
+                        Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(14.dp), tint = IslamicEmeraldPrimary)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("মোড পরিবর্তন", fontSize = 11.sp, color = IslamicEmeraldPrimary, fontWeight = FontWeight.Bold)
                     }
                 }
 

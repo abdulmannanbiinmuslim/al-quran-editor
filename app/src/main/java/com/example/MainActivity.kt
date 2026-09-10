@@ -111,6 +111,7 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
     val isAudioManagerOpen by viewModel.isAudioManagerOpen.collectAsStateWithLifecycle()
     val isThemeSelectorOpen by viewModel.isThemeSelectorOpen.collectAsStateWithLifecycle()
     val isDownloadManagerOpen by viewModel.isDownloadManagerOpen.collectAsStateWithLifecycle()
+    val isRecitationModeMenuOpen by viewModel.isRecitationModeMenuOpen.collectAsStateWithLifecycle()
     val selectedReciterForDownload by viewModel.selectedReciterForDownload.collectAsStateWithLifecycle()
     val sessionSummary by viewModel.sessionSummary.collectAsStateWithLifecycle()
     val sessionSummaryToast by viewModel.sessionSummaryToast.collectAsStateWithLifecycle()
@@ -166,6 +167,7 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                 onItemClick = { itemId ->
                     scope.launch { drawerState.close() }
                     when (itemId) {
+                        "recitation_modes" -> viewModel.setRecitationModeMenuOpen(true)
                         "audio_manager" -> viewModel.setAudioManagerOpen(true)
                         "main_settings" -> viewModel.setMainSettingsOpen(true)
                         "quick_settings" -> viewModel.setQuickSettingsOpen(true)
@@ -371,6 +373,9 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                         },
                         onFontSizeChange = { newSize ->
                             viewModel.updateSettings { it.copy(arabicFontSizeSp = newSize) }
+                        },
+                        onOpenRecitationModeMenu = {
+                            viewModel.setRecitationModeMenuOpen(true)
                         }
                     )
                 } else {
@@ -457,6 +462,7 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
             onDismiss = { isFloatingMenuOpen = false },
             onItemClick = { itemId ->
                 when (itemId) {
+                    "recitation_modes" -> viewModel.setRecitationModeMenuOpen(true)
                     "download_manager" -> viewModel.setDownloadManagerOpen(true)
                     "audio_manager" -> viewModel.setAudioManagerOpen(true)
                     "main_settings" -> viewModel.setMainSettingsOpen(true)
@@ -597,6 +603,10 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                 viewModel.setQuickSettingsOpen(false)
                 viewModel.setAudioManagerOpen(true)
             },
+            onOpenRecitationModeMenu = {
+                viewModel.setQuickSettingsOpen(false)
+                viewModel.setRecitationModeMenuOpen(true)
+            },
             onDismiss = { viewModel.setQuickSettingsOpen(false) }
         )
     }
@@ -622,8 +632,32 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                 viewModel.setMainSettingsOpen(false)
                 viewModel.setThemeSelectorOpen(true)
             },
+            onOpenRecitationModeMenu = {
+                viewModel.setMainSettingsOpen(false)
+                viewModel.setRecitationModeMenuOpen(true)
+            },
             onSyncWithCloud = { viewModel.syncWithFirestore() },
             onDismiss = { viewModel.setMainSettingsOpen(false) }
+        )
+    }
+
+    // Recitation Mode Selection Sheet (Letter-by-Letter, Word-by-Word, Ayah-by-Ayah, Surah-by-Surah)
+    if (isRecitationModeMenuOpen) {
+        RecitationModeSelectionSheet(
+            currentMode = readingSettings.recitationMode,
+            onSelectMode = { mode ->
+                viewModel.setRecitationMode(mode)
+                Toast.makeText(context, "${mode.banglaTitle} মোড সক্রিয় করা হয়েছে", Toast.LENGTH_SHORT).show()
+            },
+            wordPauseDurationMs = readingSettings.wordPauseDurationMs,
+            onWordPauseDurationChange = { viewModel.setWordPauseDuration(it) },
+            letterPauseDurationMs = readingSettings.letterPauseDurationMs,
+            onLetterPauseDurationChange = { viewModel.setLetterPauseDuration(it) },
+            autoAdvanceSurah = readingSettings.autoAdvanceSurah,
+            onAutoAdvanceSurahChange = { auto ->
+                viewModel.updateSettings { it.copy(autoAdvanceSurah = auto) }
+            },
+            onDismiss = { viewModel.setRecitationModeMenuOpen(false) }
         )
     }
 
@@ -648,6 +682,10 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
             onOpenTimingGenerator = {
                 viewModel.setAudioManagerOpen(false)
                 viewModel.setTimingGeneratorOpen(true)
+            },
+            onOpenRecitationModeMenu = {
+                viewModel.setAudioManagerOpen(false)
+                viewModel.setRecitationModeMenuOpen(true)
             },
             onDismiss = { viewModel.setAudioManagerOpen(false) }
         )

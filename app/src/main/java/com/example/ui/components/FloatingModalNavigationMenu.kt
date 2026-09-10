@@ -39,6 +39,7 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.RateReview
+import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Settings
@@ -154,6 +155,7 @@ fun FloatingModalNavigationMenuContent(
             DrawerMenuItem("bookmarks", "Bookmarks & Folders", "সংরক্ষিত আয়াতসমূহ", Icons.Outlined.BookmarkBorder, section = "প্রধান বৈশিষ্ট্যসমূহ"),
 
             // Section 2: Studio & Customization
+            DrawerMenuItem("recitation_modes", "Recitation Modes", "হরফ, শব্দ, আয়াত ও সূরা তিলাওয়াত মোড", Icons.Outlined.RecordVoiceOver, section = "কাস্টমাইজেশন ও অডিও", iconTint = Color(0xFF1E563F)),
             DrawerMenuItem("download_manager", "Surah Download Page", "সূরা ও আয়াত ভিত্তিক অফলাইন ডাউনলোড", Icons.Default.Download, section = "কাস্টমাইজেশন ও অডিও", iconTint = Color(0xFF1E563F)),
             DrawerMenuItem("audio_manager", "Audio Manager", "ক্বারী, অফলাইন ডাউনলোড ও স্পিড", Icons.Outlined.Headphones, section = "কাস্টমাইজেশন ও অডিও", iconTint = Color(0xFF1E563F)),
             DrawerMenuItem("main_settings", "Main Setting Page", "কুরআন ও অ্যাপের পূর্ণাঙ্গ সেটিংস", Icons.Outlined.Settings, section = "কাস্টমাইজেশন ও অডিও", iconTint = Color(0xFF1E563F)),

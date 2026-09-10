@@ -7,6 +7,7 @@ import android.os.Build
 import android.util.Log
 import com.example.data.model.AyahItem
 import com.example.data.model.ReciterItem
+import com.example.data.model.RecitationMode
 import com.example.data.repository.QuranData
 import com.example.data.repository.RecitersData
 import kotlinx.coroutines.*
@@ -30,7 +31,10 @@ data class AudioPlayerState(
     val playbackSpeed: Float = 1.0f,
     val hasNext: Boolean = false,
     val hasPrevious: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val recitationMode: RecitationMode = RecitationMode.AYAH_BY_AYAH,
+    val activeWordIndex: Int = -1,
+    val activeLetterIndex: Int = -1
 )
 
 class AudioPlayerManager(private val context: Context) {
@@ -121,9 +125,19 @@ class AudioPlayerManager(private val context: Context) {
                             if (mp.isPlaying) {
                                 val pos = mp.currentPosition.toLong().coerceAtLeast(0L)
                                 val dur = mp.duration.toLong().coerceAtLeast(1L)
+                                val curAyah = _playerState.value.currentAyah
+                                val wordIdx = if (curAyah != null && curAyah.words.isNotEmpty() && dur > 0) {
+                                    ((pos.toFloat() / dur) * curAyah.words.size).toInt().coerceIn(0, curAyah.words.size - 1)
+                                } else -1
+                                val letterIdx = if (curAyah != null && curAyah.textUthmani.isNotEmpty() && dur > 0) {
+                                    ((pos.toFloat() / dur) * curAyah.textUthmani.length).toInt().coerceIn(0, curAyah.textUthmani.length - 1)
+                                } else -1
+
                                 _playerState.value = _playerState.value.copy(
                                     currentPositionMs = pos,
-                                    durationMs = dur
+                                    durationMs = dur,
+                                    activeWordIndex = wordIdx,
+                                    activeLetterIndex = letterIdx
                                 )
                             }
                         } catch (e: Exception) {
@@ -131,7 +145,7 @@ class AudioPlayerManager(private val context: Context) {
                         }
                     }
                 }
-                delay(250)
+                delay(200)
             }
         }
     }
@@ -139,6 +153,10 @@ class AudioPlayerManager(private val context: Context) {
     private fun stopProgressTicker() {
         progressJob?.cancel()
         progressJob = null
+    }
+
+    fun setRecitationMode(mode: RecitationMode) {
+        _playerState.value = _playerState.value.copy(recitationMode = mode)
     }
 
     private fun applyPlaybackSpeed() {
@@ -293,18 +311,41 @@ class AudioPlayerManager(private val context: Context) {
             return
         }
 
-        if (currentPlaylistIndex < playlistAyahs.size - 1) {
-            currentPlaylistIndex++
-            _playerState.value = _playerState.value.copy(repeatAyahRemaining = state.repeatAyahTimes)
-            playCurrentAyahFromPlaylist()
-        } else {
-            // Reached end of range
-            _playerState.value = _playerState.value.copy(
-                isPlaying = false,
-                isBuffering = false,
-                currentPositionMs = _playerState.value.durationMs
-            )
-            stopProgressTicker()
+        when (state.recitationMode) {
+            RecitationMode.SURAH_BY_SURAH -> {
+                // Continuous, uninterrupted playback through whole surah
+                if (currentPlaylistIndex < playlistAyahs.size - 1) {
+                    currentPlaylistIndex++
+                    _playerState.value = _playerState.value.copy(repeatAyahRemaining = 0)
+                    playCurrentAyahFromPlaylist()
+                } else {
+                    _playerState.value = _playerState.value.copy(
+                        isPlaying = false,
+                        isBuffering = false,
+                        currentPositionMs = _playerState.value.durationMs,
+                        activeWordIndex = -1,
+                        activeLetterIndex = -1
+                    )
+                    stopProgressTicker()
+                }
+            }
+            else -> {
+                if (currentPlaylistIndex < playlistAyahs.size - 1) {
+                    currentPlaylistIndex++
+                    _playerState.value = _playerState.value.copy(repeatAyahRemaining = state.repeatAyahTimes)
+                    playCurrentAyahFromPlaylist()
+                } else {
+                    // Reached end of range
+                    _playerState.value = _playerState.value.copy(
+                        isPlaying = false,
+                        isBuffering = false,
+                        currentPositionMs = _playerState.value.durationMs,
+                        activeWordIndex = -1,
+                        activeLetterIndex = -1
+                    )
+                    stopProgressTicker()
+                }
+            }
         }
     }
 

@@ -42,6 +42,7 @@ fun QuickSettingsModalSheet(
     onOpenThemeSelector: () -> Unit = {},
     onOpenMainSettings: () -> Unit = {},
     onOpenAudioManager: () -> Unit = {},
+    onOpenRecitationModeMenu: () -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -269,6 +270,25 @@ fun QuickSettingsModalSheet(
                     }
                 }
             }
+
+            Divider(modifier = Modifier.padding(vertical = 12.dp))
+
+            // Recitation Mode Selector
+            RecitationModeQuickSelectorCard(
+                currentMode = settings.recitationMode,
+                onSelectMode = { newMode ->
+                    onSettingsChange(
+                        settings.copy(
+                            recitationMode = newMode,
+                            showWordByWord = if (newMode == com.example.data.model.RecitationMode.WORD_BY_WORD) true else settings.showWordByWord
+                        )
+                    )
+                },
+                onOpenFullSettings = {
+                    onDismiss()
+                    onOpenRecitationModeMenu()
+                }
+            )
 
             Divider(modifier = Modifier.padding(vertical = 12.dp))
 

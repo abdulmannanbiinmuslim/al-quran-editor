@@ -41,6 +41,7 @@ fun MainSettingsSheet(
     onOpenTajweedGuide: () -> Unit,
     onOpenThemeSelector: () -> Unit,
     onSyncWithCloud: () -> Unit,
+    onOpenRecitationModeMenu: () -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -461,6 +462,25 @@ fun MainSettingsSheet(
                     title = "অডিও ও ক্বারী সেটিংস",
                     subtitle = "অডিও প্লেয়ার, অফলাইন ও রিপিট নিয়ন্ত্রণ"
                 )
+
+                // Recitation Mode Quick Selector
+                RecitationModeQuickSelectorCard(
+                    currentMode = settings.recitationMode,
+                    onSelectMode = { newMode ->
+                        onSettingsChange(
+                            settings.copy(
+                                recitationMode = newMode,
+                                showWordByWord = if (newMode == RecitationMode.WORD_BY_WORD) true else settings.showWordByWord
+                            )
+                        )
+                    },
+                    onOpenFullSettings = {
+                        onDismiss()
+                        onOpenRecitationModeMenu()
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Surface(
                     shape = RoundedCornerShape(12.dp),

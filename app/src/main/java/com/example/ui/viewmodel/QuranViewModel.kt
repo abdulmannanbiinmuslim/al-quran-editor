@@ -131,6 +131,9 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
     private val _isThemeSelectorOpen = MutableStateFlow(false)
     val isThemeSelectorOpen = _isThemeSelectorOpen.asStateFlow()
 
+    private val _isRecitationModeMenuOpen = MutableStateFlow(false)
+    val isRecitationModeMenuOpen = _isRecitationModeMenuOpen.asStateFlow()
+
     private val _isDownloadManagerOpen = MutableStateFlow(false)
     val isDownloadManagerOpen = _isDownloadManagerOpen.asStateFlow()
     val selectedReciterForDownload = MutableStateFlow<ReciterItem?>(null)
@@ -243,8 +246,12 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
                     arabicLetterSpacingSp = persisted.arabicLetterSpacingSp,
                     arabicFontWeight = persisted.arabicFontWeight,
                     appColorTheme = persisted.appColorTheme,
-                    nightModeOption = persisted.nightModeOption
+                    nightModeOption = persisted.nightModeOption,
+                    recitationMode = persisted.recitationMode,
+                    wordPauseDurationMs = persisted.wordPauseDurationMs,
+                    letterPauseDurationMs = persisted.letterPauseDurationMs
                 )
+                audioPlayer.setRecitationMode(persisted.recitationMode)
             }
         }
     }
@@ -694,6 +701,35 @@ class QuranViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateSettings(transform: (ReadingSettings) -> ReadingSettings) {
         _readingSettings.value = transform(_readingSettings.value)
+    }
+
+    fun setRecitationModeMenuOpen(isOpen: Boolean) {
+        _isRecitationModeMenuOpen.value = isOpen
+    }
+
+    fun setRecitationMode(mode: RecitationMode) {
+        _readingSettings.value = _readingSettings.value.copy(
+            recitationMode = mode,
+            showWordByWord = if (mode == RecitationMode.WORD_BY_WORD) true else _readingSettings.value.showWordByWord
+        )
+        audioPlayer.setRecitationMode(mode)
+        viewModelScope.launch {
+            preferencesManager.saveRecitationMode(mode)
+        }
+    }
+
+    fun setWordPauseDuration(durationMs: Long) {
+        _readingSettings.value = _readingSettings.value.copy(wordPauseDurationMs = durationMs)
+        viewModelScope.launch {
+            preferencesManager.saveWordPauseDuration(durationMs)
+        }
+    }
+
+    fun setLetterPauseDuration(durationMs: Long) {
+        _readingSettings.value = _readingSettings.value.copy(letterPauseDurationMs = durationMs)
+        viewModelScope.launch {
+            preferencesManager.saveLetterPauseDuration(durationMs)
+        }
     }
 
     fun toggleAutoScroll() {

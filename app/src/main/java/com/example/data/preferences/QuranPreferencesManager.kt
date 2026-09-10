@@ -8,6 +8,7 @@ import com.example.data.model.AppColorTheme
 import com.example.data.model.NightModeOption
 import com.example.data.model.QuranFontFamily
 import com.example.data.model.QuranScriptType
+import com.example.data.model.RecitationMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -23,7 +24,10 @@ data class PersistedTypographySettings(
     val arabicLetterSpacingSp: Float = 0f,
     val arabicFontWeight: String = "Bold",
     val appColorTheme: AppColorTheme = AppColorTheme.EMERALD,
-    val nightModeOption: NightModeOption = NightModeOption.LIGHT
+    val nightModeOption: NightModeOption = NightModeOption.LIGHT,
+    val recitationMode: RecitationMode = RecitationMode.AYAH_BY_AYAH,
+    val wordPauseDurationMs: Long = 500L,
+    val letterPauseDurationMs: Long = 350L
 )
 
 class QuranPreferencesManager(private val context: Context) {
@@ -37,6 +41,9 @@ class QuranPreferencesManager(private val context: Context) {
         val ARABIC_FONT_WEIGHT = stringPreferencesKey("arabic_font_weight")
         val APP_COLOR_THEME = stringPreferencesKey("app_color_theme")
         val NIGHT_MODE_OPTION = stringPreferencesKey("night_mode_option")
+        val RECITATION_MODE = stringPreferencesKey("recitation_mode")
+        val WORD_PAUSE_DURATION = longPreferencesKey("word_pause_duration_ms")
+        val LETTER_PAUSE_DURATION = longPreferencesKey("letter_pause_duration_ms")
     }
 
     val typographySettingsFlow: Flow<PersistedTypographySettings> = context.dataStore.data
@@ -84,6 +91,15 @@ class QuranPreferencesManager(private val context: Context) {
                 }
             } ?: NightModeOption.LIGHT
 
+            val recitationModeName = preferences[PreferencesKeys.RECITATION_MODE]
+            val recitationMode = recitationModeName?.let {
+                try {
+                    RecitationMode.valueOf(it)
+                } catch (e: Exception) {
+                    RecitationMode.AYAH_BY_AYAH
+                }
+            } ?: RecitationMode.AYAH_BY_AYAH
+
             PersistedTypographySettings(
                 selectedFont = selectedFont,
                 selectedScript = selectedScript,
@@ -92,9 +108,30 @@ class QuranPreferencesManager(private val context: Context) {
                 arabicLetterSpacingSp = preferences[PreferencesKeys.ARABIC_LETTER_SPACING] ?: 0f,
                 arabicFontWeight = preferences[PreferencesKeys.ARABIC_FONT_WEIGHT] ?: "Bold",
                 appColorTheme = appColorTheme,
-                nightModeOption = nightModeOption
+                nightModeOption = nightModeOption,
+                recitationMode = recitationMode,
+                wordPauseDurationMs = preferences[PreferencesKeys.WORD_PAUSE_DURATION] ?: 500L,
+                letterPauseDurationMs = preferences[PreferencesKeys.LETTER_PAUSE_DURATION] ?: 350L
             )
         }
+
+    suspend fun saveRecitationMode(mode: RecitationMode) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.RECITATION_MODE] = mode.name
+        }
+    }
+
+    suspend fun saveWordPauseDuration(durationMs: Long) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.WORD_PAUSE_DURATION] = durationMs
+        }
+    }
+
+    suspend fun saveLetterPauseDuration(durationMs: Long) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.LETTER_PAUSE_DURATION] = durationMs
+        }
+    }
 
     suspend fun saveFontFamily(font: QuranFontFamily) {
         context.dataStore.edit { preferences ->

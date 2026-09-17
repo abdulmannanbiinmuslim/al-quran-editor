@@ -54,6 +54,8 @@ fun HomeScreen(
     searchQuery: String,
     weeklyReadingSummary: WeeklyReadingSummary? = null,
     onViewFullStats: () -> Unit = {},
+    listState: androidx.compose.foundation.lazy.LazyListState = rememberLazyListState(),
+    contentPadding: PaddingValues = PaddingValues(bottom = 90.dp),
     modifier: Modifier = Modifier
 ) {
     val quickLinks = listOf(
@@ -66,8 +68,6 @@ fun HomeScreen(
         "AL-WAQI'AH" to 56,
         "AL-IKHLAS" to 112
     )
-
-    val listState = rememberLazyListState()
 
     // When tab changes, if user was scrolled past the header, maintain position at sticky tab
     LaunchedEffect(activeSubTab) {
@@ -117,7 +117,7 @@ fun HomeScreen(
                     }
                 )
             },
-        contentPadding = PaddingValues(bottom = 90.dp)
+        contentPadding = contentPadding
     ) {
         // 1. New Refined Auto-Sliding Hero Banner (No broken lines, full text displayed)
         item(key = "hero_banner") {

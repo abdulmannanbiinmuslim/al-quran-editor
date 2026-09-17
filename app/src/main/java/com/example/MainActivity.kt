@@ -13,9 +13,13 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,7 +30,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 import com.example.data.model.AyahItem
 import com.example.data.model.LibraryItem
 import com.example.data.model.ReadingLayoutMode
@@ -150,6 +162,61 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
     var selectedAyahForBookmarkFolders by remember { mutableStateOf<AyahItem?>(null) }
     var isFloatingMenuOpen by remember { mutableStateOf(false) }
 
+    val homeListState = rememberLazyListState()
+    var isHomeBarsVisible by remember { mutableStateOf(true) }
+
+    val homeNestedScrollConnection = remember(readingSettings.hideBarsOnScroll) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (!readingSettings.hideBarsOnScroll) return Offset.Zero
+                val deltaY = available.y
+                // Downward scroll: hide bars
+                if (deltaY < -4f) {
+                    if (isHomeBarsVisible && (homeListState.firstVisibleItemIndex > 0 || homeListState.firstVisibleItemScrollOffset > 8)) {
+                        isHomeBarsVisible = false
+                    }
+                } else if (deltaY > 6f) {
+                    // Upward scroll: reveal bars
+                    if (!isHomeBarsVisible) {
+                        isHomeBarsVisible = true
+                    }
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    // Auto-reveal on scroll idle for home
+    LaunchedEffect(homeListState.isScrollInProgress, readingSettings.hideBarsOnScroll) {
+        if (!readingSettings.hideBarsOnScroll) {
+            isHomeBarsVisible = true
+            return@LaunchedEffect
+        }
+        if (!homeListState.isScrollInProgress) {
+            delay(700L)
+            if (!homeListState.isScrollInProgress) {
+                isHomeBarsVisible = true
+            }
+        }
+    }
+
+    // Reset visibility to true when switching tabs or toggling search
+    LaunchedEffect(currentTab, isSearchActive) {
+        isHomeBarsVisible = true
+    }
+
+    // Keep visible at the very top of home screen
+    val isHomeAtTop by remember {
+        derivedStateOf {
+            homeListState.firstVisibleItemIndex == 0 && homeListState.firstVisibleItemScrollOffset < 15
+        }
+    }
+    LaunchedEffect(isHomeAtTop) {
+        if (isHomeAtTop) {
+            isHomeBarsVisible = true
+        }
+    }
+
     // Back handling
     BackHandler(enabled = isReadingMode || isReciterSelectorOpen || isFloatingMenuOpen || drawerState.isOpen) {
         when {
@@ -197,9 +264,209 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
             )
         }
     ) {
-        Scaffold(
-            topBar = {
-                if (!isReadingMode && !isReciterSelectorOpen) {
+        val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val hasMiniPlayer = !isReadingMode && !isReciterSelectorOpen && (audioState.isPlaying || audioState.isBuffering || audioState.currentAyah != null)
+
+        if (isReciterSelectorOpen) {
+            ReciterSelectorScreen(
+                currentReciter = audioState.currentReciter,
+                onSelectReciter = { reciter ->
+                    viewModel.audioPlayer.playSingleAyah(
+                        surahNumber = currentSurah.number,
+                        ayah = currentAyahs.firstOrNull() ?: com.example.data.repository.QuranData.fatihahAyahs[0],
+                        reciter = reciter
+                    )
+                    viewModel.setReciterSelectorOpen(false)
+                },
+                onOpenDownloadManager = { reciter ->
+                    viewModel.setDownloadManagerOpen(true, reciter)
+                },
+                onBack = { viewModel.setReciterSelectorOpen(false) }
+            )
+        } else if (isReadingMode) {
+            QuranReadingScreen(
+                surah = currentSurah,
+                ayahs = currentAyahs,
+                settings = readingSettings,
+                audioState = audioState,
+                isAutoScrollActive = isAutoScrollActive,
+                autoScrollSpeed = autoScrollSpeed,
+                isFavoriteAyah = { s, a -> viewModel.isAyahFavorite(s, a) },
+                isSurahCompleted = viewModel.isSurahCompleted(currentSurah.number),
+                dontShowCelebrationAgain = dontShowCelebrationAgain,
+                onToggleSurahCompleted = { viewModel.toggleSurahCompleted(currentSurah.number) },
+                onSetDontShowCelebration = { viewModel.setDontShowCelebrationAgain(it) },
+                onToggleFavoriteAyah = { viewModel.toggleFavorite(it) },
+                onBack = { viewModel.closeReadingMode() },
+                onTitleClick = { viewModel.setJumpToAyahOpen(true) },
+                onToggleLayoutMode = {
+                    viewModel.updateSettings {
+                        it.copy(
+                            layoutMode = if (it.layoutMode == ReadingLayoutMode.LYRICS_AYAH_BY_AYAH)
+                                ReadingLayoutMode.PAGE_MUSHAF
+                            else
+                                ReadingLayoutMode.LYRICS_AYAH_BY_AYAH
+                        )
+                    }
+                },
+                onOpenQuickSettings = { viewModel.setQuickSettingsOpen(true) },
+                onOpenFontSettings = { viewModel.setFontSettingsOpen(true) },
+                onOpenContents = { viewModel.setQuickSettingsOpen(true) },
+                onToggleAutoScroll = { viewModel.toggleAutoScroll() },
+                onAutoScrollSpeedChange = { viewModel.setAutoScrollSpeed(it) },
+                onOpenAudioEditor = { viewModel.setAudioEditorOpen(true) },
+                onOpenPlayerBottomSheet = { viewModel.setPlayerBottomSheetOpen(true) },
+                onPlayPauseAudio = { viewModel.audioPlayer.togglePlayPause() },
+                onSeekAudio = { viewModel.audioPlayer.seekTo(it) },
+                onNextAyahAudio = { viewModel.audioPlayer.skipNext() },
+                onPreviousAyahAudio = { viewModel.audioPlayer.skipPrevious() },
+                onOpenPlanner = {
+                    viewModel.closeReadingMode()
+                    viewModel.setTab(1)
+                },
+                onAyahOptionsClick = { ayah ->
+                    viewModel.setAyahOptionsOpen(true, ayah)
+                },
+                onPlaySingleAyah = { ayah ->
+                    viewModel.audioPlayer.playSingleAyah(currentSurah.number, ayah, audioState.currentReciter)
+                    viewModel.setPlayerBottomSheetOpen(true)
+                },
+                onAddBookmark = { ayah ->
+                    selectedAyahForBookmarkFolders = ayah
+                },
+                onAddNoteClick = { ayah ->
+                    showNoteDialogForAyah = ayah
+                },
+                onFontSizeChange = { newSize ->
+                    viewModel.updateSettings { it.copy(arabicFontSizeSp = newSize) }
+                },
+                onOpenRecitationModeMenu = {
+                    viewModel.setRecitationModeMenuOpen(true)
+                }
+            )
+        } else {
+            // Main Content Area with Hide / Reveal on Scroll for TopToolBar and NavigationBar
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .nestedScroll(homeNestedScrollConnection)
+                    .pointerInput(isHomeBarsVisible) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                if (event.type == PointerEventType.Press) {
+                                    if (!isHomeBarsVisible) {
+                                        isHomeBarsVisible = true
+                                    }
+                                }
+                            }
+                        }
+                    }
+            ) {
+                // Screen Content
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when (currentTab) {
+                        0 -> HomeScreen(
+                            activeSubTab = homeSubTab,
+                            onSubTabChange = { viewModel.setHomeSubTab(it) },
+                            onSurahClick = { surahNum, ayahNum -> viewModel.openSurah(surahNum, ayahNum) },
+                            onReciterClick = { reciter ->
+                                viewModel.openSurah(1, 1)
+                                viewModel.audioPlayer.playSingleAyah(1, com.example.data.repository.QuranData.fatihahAyahs[0], reciter)
+                                viewModel.setPlayerBottomSheetOpen(true)
+                            },
+                            lastReadList = lastReadList,
+                            searchQuery = searchQuery,
+                            weeklyReadingSummary = weeklyReadingSummary,
+                            onViewFullStats = { viewModel.setTab(4) },
+                            listState = homeListState,
+                            contentPadding = PaddingValues(
+                                top = statusBarTop + 56.dp + (if (isSearchActive) 56.dp else 0.dp),
+                                bottom = navBarBottom + 80.dp + (if (hasMiniPlayer) 60.dp else 0.dp)
+                            )
+                        )
+                        1 -> PlannerScreen(
+                            activeSubTab = plannerSubTab,
+                            onSubTabChange = { viewModel.setPlannerSubTab(it) },
+                            activePlanners = activePlanners,
+                            findPlanners = viewModel.findPlannersList,
+                            completedPlanners = completedPlanners,
+                            onCreatePlanner = { t, d, v -> viewModel.createCustomPlanner(t, d, v) },
+                            onStartPlanner = { item -> viewModel.startFindPlanner(item) },
+                            modifier = Modifier.padding(
+                                top = statusBarTop + 56.dp + (if (isSearchActive) 56.dp else 0.dp),
+                                bottom = navBarBottom + 80.dp + (if (hasMiniPlayer) 60.dp else 0.dp)
+                            )
+                        )
+                        2 -> TopicsScreen(
+                            onNavigateToAyah = { s, a -> viewModel.openSurah(s, a) },
+                            modifier = Modifier.padding(
+                                top = statusBarTop + 56.dp + (if (isSearchActive) 56.dp else 0.dp),
+                                bottom = navBarBottom + 80.dp + (if (hasMiniPlayer) 60.dp else 0.dp)
+                            )
+                        )
+                        3 -> LibraryScreen(
+                            activeSubTab = librarySubTab,
+                            onSubTabChange = { viewModel.setLibrarySubTab(it) },
+                            lastReadList = lastReadList,
+                            favoriteList = favoriteAyahs,
+                            pinnedList = pinnedAyahs,
+                            notesList = userNotes,
+                            onNavigateToAyah = { s, a -> viewModel.openSurah(s, a) },
+                            onDeletePin = { viewModel.removePin(it) },
+                            onDeleteFavorite = { viewModel.removeFavorite(it) },
+                            onDeleteNote = { viewModel.deleteNote(it) },
+                            modifier = Modifier.padding(
+                                top = statusBarTop + 56.dp + (if (isSearchActive) 56.dp else 0.dp),
+                                bottom = navBarBottom + 80.dp + (if (hasMiniPlayer) 60.dp else 0.dp)
+                            )
+                        )
+                        4 -> StatsScreen(
+                            currentStreakDays = streakDays,
+                            readTodayMinutes = readTodayMin,
+                            readTargetMinutes = readTargetMin,
+                            weeklyStats = viewModel.weeklyStats,
+                            weeklyReadingSummary = weeklyReadingSummary,
+                            dailyReminderSettings = dailyReminderSettings,
+                            onUpdateDailyReminder = { viewModel.updateDailyReminderSettings(it) },
+                            onSendTestReminder = { viewModel.sendTestDailyReminder() },
+                            currentUser = currentUser,
+                            cloudSyncStatus = cloudSyncStatus,
+                            cloudUserData = cloudUserData,
+                            onSignInWithGoogle = { viewModel.signInWithGoogle(context) },
+                            onQuickSignIn = { viewModel.quickConnectAccount() },
+                            onSyncNow = { viewModel.syncWithFirestore() },
+                            onSignOut = { viewModel.signOutFromFirebase() },
+                            lastReadList = lastReadList,
+                            onNavigateToAyah = { s, a -> viewModel.openSurah(s, a) },
+                            modifier = Modifier.padding(
+                                top = statusBarTop + 56.dp + (if (isSearchActive) 56.dp else 0.dp),
+                                bottom = navBarBottom + 80.dp + (if (hasMiniPlayer) 60.dp else 0.dp)
+                            )
+                        )
+                    }
+                }
+
+                // 2. Animated Top Tool Bar (Hide / Reveal on Scroll)
+                AnimatedVisibility(
+                    visible = isHomeBarsVisible || !readingSettings.hideBarsOnScroll,
+                    enter = slideInVertically(
+                        initialOffsetY = { -it },
+                        animationSpec = spring(
+                            dampingRatio = 0.82f,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeIn(animationSpec = tween(220)),
+                    exit = slideOutVertically(
+                        targetOffsetY = { -it },
+                        animationSpec = spring(
+                            dampingRatio = 0.82f,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeOut(animationSpec = tween(180)),
+                    modifier = Modifier.align(Alignment.TopCenter)
+                ) {
                     TopToolBar(
                         title = when (currentTab) {
                             0 -> "Al Quran"
@@ -221,236 +488,111 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                         onMenuClick = { isFloatingMenuOpen = true }
                     )
                 }
-            },
-            bottomBar = {
-                if (!isReadingMode && !isReciterSelectorOpen) {
-                    NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 8.dp
+
+                // 3. Animated Bottom Bar & Persistent Mini Player (Hide / Reveal on Scroll)
+                AnimatedVisibility(
+                    visible = isHomeBarsVisible || !readingSettings.hideBarsOnScroll,
+                    enter = slideInVertically(
+                        initialOffsetY = { it },
+                        animationSpec = spring(
+                            dampingRatio = 0.82f,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeIn(animationSpec = tween(220)),
+                    exit = slideOutVertically(
+                        targetOffsetY = { it },
+                        animationSpec = spring(
+                            dampingRatio = 0.82f,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    ) + fadeOut(animationSpec = tween(180)),
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        NavigationBarItem(
-                            selected = currentTab == 0,
-                            onClick = { viewModel.setTab(0) },
-                            icon = { Icon(Icons.Default.MenuBook, contentDescription = "Home") },
-                            label = { Text("Home", fontSize = 11.sp) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = IslamicEmeraldPrimary,
-                                selectedTextColor = IslamicEmeraldPrimary,
-                                indicatorColor = IslamicEmeraldPrimary.copy(alpha = 0.15f)
-                            ),
-                            modifier = Modifier.testTag("nav_tab_home")
-                        )
-
-                        NavigationBarItem(
-                            selected = currentTab == 1,
-                            onClick = { viewModel.setTab(1) },
-                            icon = { Icon(Icons.Default.EventNote, contentDescription = "Planner") },
-                            label = { Text("Planner", fontSize = 11.sp) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = IslamicEmeraldPrimary,
-                                selectedTextColor = IslamicEmeraldPrimary,
-                                indicatorColor = IslamicEmeraldPrimary.copy(alpha = 0.15f)
-                            ),
-                            modifier = Modifier.testTag("nav_tab_planner")
-                        )
-
-                        NavigationBarItem(
-                            selected = currentTab == 2,
-                            onClick = { viewModel.setTab(2) },
-                            icon = { Icon(Icons.Default.Category, contentDescription = "Topics") },
-                            label = { Text("Topics", fontSize = 11.sp) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = IslamicEmeraldPrimary,
-                                selectedTextColor = IslamicEmeraldPrimary,
-                                indicatorColor = IslamicEmeraldPrimary.copy(alpha = 0.15f)
-                            ),
-                            modifier = Modifier.testTag("nav_tab_topics")
-                        )
-
-                        NavigationBarItem(
-                            selected = currentTab == 3,
-                            onClick = { viewModel.setTab(3) },
-                            icon = { Icon(Icons.Default.Bookmarks, contentDescription = "Library") },
-                            label = { Text("Library", fontSize = 11.sp) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = IslamicEmeraldPrimary,
-                                selectedTextColor = IslamicEmeraldPrimary,
-                                indicatorColor = IslamicEmeraldPrimary.copy(alpha = 0.15f)
-                            ),
-                            modifier = Modifier.testTag("nav_tab_library")
-                        )
-
-                        NavigationBarItem(
-                            selected = currentTab == 4,
-                            onClick = { viewModel.setTab(4) },
-                            icon = { Icon(Icons.Default.Insights, contentDescription = "Stats") },
-                            label = { Text("Stats", fontSize = 11.sp) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = IslamicEmeraldPrimary,
-                                selectedTextColor = IslamicEmeraldPrimary,
-                                indicatorColor = IslamicEmeraldPrimary.copy(alpha = 0.15f)
-                            ),
-                            modifier = Modifier.testTag("nav_tab_stats")
-                        )
-                    }
-                }
-            }
-        ) { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                if (isReciterSelectorOpen) {
-                    ReciterSelectorScreen(
-                        currentReciter = audioState.currentReciter,
-                        onSelectReciter = { reciter ->
-                            viewModel.audioPlayer.playSingleAyah(
-                                surahNumber = currentSurah.number,
-                                ayah = currentAyahs.firstOrNull() ?: com.example.data.repository.QuranData.fatihahAyahs[0],
-                                reciter = reciter
+                        if (hasMiniPlayer) {
+                            PersistentAudioPlayerBar(
+                                audioState = audioState,
+                                onExpandPlayer = { viewModel.setPlayerBottomSheetOpen(true) },
+                                onPlayPauseToggle = { viewModel.audioPlayer.togglePlayPause() },
+                                onSkipNext = { viewModel.audioPlayer.skipNext() },
+                                onSkipPrevious = { viewModel.audioPlayer.skipPrevious() },
+                                onClosePlayer = { viewModel.audioPlayer.stopAudio() },
+                                modifier = Modifier.fillMaxWidth()
                             )
-                            viewModel.setReciterSelectorOpen(false)
-                        },
-                        onOpenDownloadManager = { reciter ->
-                            viewModel.setDownloadManagerOpen(true, reciter)
-                        },
-                        onBack = { viewModel.setReciterSelectorOpen(false) }
-                    )
-                } else if (isReadingMode) {
-                    QuranReadingScreen(
-                        surah = currentSurah,
-                        ayahs = currentAyahs,
-                        settings = readingSettings,
-                        audioState = audioState,
-                        isAutoScrollActive = isAutoScrollActive,
-                        autoScrollSpeed = autoScrollSpeed,
-                        isFavoriteAyah = { s, a -> viewModel.isAyahFavorite(s, a) },
-                        isSurahCompleted = viewModel.isSurahCompleted(currentSurah.number),
-                        dontShowCelebrationAgain = dontShowCelebrationAgain,
-                        onToggleSurahCompleted = { viewModel.toggleSurahCompleted(currentSurah.number) },
-                        onSetDontShowCelebration = { viewModel.setDontShowCelebrationAgain(it) },
-                        onToggleFavoriteAyah = { viewModel.toggleFavorite(it) },
-                        onBack = { viewModel.closeReadingMode() },
-                        onTitleClick = { viewModel.setJumpToAyahOpen(true) },
-                        onToggleLayoutMode = {
-                            viewModel.updateSettings {
-                                it.copy(
-                                    layoutMode = if (it.layoutMode == ReadingLayoutMode.LYRICS_AYAH_BY_AYAH)
-                                        ReadingLayoutMode.PAGE_MUSHAF
-                                    else
-                                        ReadingLayoutMode.LYRICS_AYAH_BY_AYAH
-                                )
-                            }
-                        },
-                        onOpenQuickSettings = { viewModel.setQuickSettingsOpen(true) },
-                        onOpenFontSettings = { viewModel.setFontSettingsOpen(true) },
-                        onOpenContents = { viewModel.setQuickSettingsOpen(true) },
-                        onToggleAutoScroll = { viewModel.toggleAutoScroll() },
-                        onAutoScrollSpeedChange = { viewModel.setAutoScrollSpeed(it) },
-                        onOpenAudioEditor = { viewModel.setAudioEditorOpen(true) },
-                        onOpenPlayerBottomSheet = { viewModel.setPlayerBottomSheetOpen(true) },
-                        onPlayPauseAudio = { viewModel.audioPlayer.togglePlayPause() },
-                        onSeekAudio = { viewModel.audioPlayer.seekTo(it) },
-                        onNextAyahAudio = { viewModel.audioPlayer.skipNext() },
-                        onPreviousAyahAudio = { viewModel.audioPlayer.skipPrevious() },
-                        onOpenPlanner = {
-                            viewModel.closeReadingMode()
-                            viewModel.setTab(1)
-                        },
-                        onAyahOptionsClick = { ayah ->
-                            viewModel.setAyahOptionsOpen(true, ayah)
-                        },
-                        onPlaySingleAyah = { ayah ->
-                            viewModel.audioPlayer.playSingleAyah(currentSurah.number, ayah, audioState.currentReciter)
-                            viewModel.setPlayerBottomSheetOpen(true)
-                        },
-                        onAddBookmark = { ayah ->
-                            selectedAyahForBookmarkFolders = ayah
-                        },
-                        onAddNoteClick = { ayah ->
-                            showNoteDialogForAyah = ayah
-                        },
-                        onFontSizeChange = { newSize ->
-                            viewModel.updateSettings { it.copy(arabicFontSizeSp = newSize) }
-                        },
-                        onOpenRecitationModeMenu = {
-                            viewModel.setRecitationModeMenuOpen(true)
                         }
-                    )
-                } else {
-                    when (currentTab) {
-                        0 -> HomeScreen(
-                            activeSubTab = homeSubTab,
-                            onSubTabChange = { viewModel.setHomeSubTab(it) },
-                            onSurahClick = { surahNum, ayahNum -> viewModel.openSurah(surahNum, ayahNum) },
-                            onReciterClick = { reciter ->
-                                viewModel.openSurah(1, 1)
-                                viewModel.audioPlayer.playSingleAyah(1, com.example.data.repository.QuranData.fatihahAyahs[0], reciter)
-                                viewModel.setPlayerBottomSheetOpen(true)
-                            },
-                            lastReadList = lastReadList,
-                            searchQuery = searchQuery,
-                            weeklyReadingSummary = weeklyReadingSummary,
-                            onViewFullStats = { viewModel.setTab(4) }
-                        )
-                        1 -> PlannerScreen(
-                            activeSubTab = plannerSubTab,
-                            onSubTabChange = { viewModel.setPlannerSubTab(it) },
-                            activePlanners = activePlanners,
-                            findPlanners = viewModel.findPlannersList,
-                            completedPlanners = completedPlanners,
-                            onCreatePlanner = { t, d, v -> viewModel.createCustomPlanner(t, d, v) },
-                            onStartPlanner = { item -> viewModel.startFindPlanner(item) }
-                        )
-                        2 -> TopicsScreen(
-                            onNavigateToAyah = { s, a -> viewModel.openSurah(s, a) }
-                        )
-                        3 -> LibraryScreen(
-                            activeSubTab = librarySubTab,
-                            onSubTabChange = { viewModel.setLibrarySubTab(it) },
-                            lastReadList = lastReadList,
-                            favoriteList = favoriteAyahs,
-                            pinnedList = pinnedAyahs,
-                            notesList = userNotes,
-                            onNavigateToAyah = { s, a -> viewModel.openSurah(s, a) },
-                            onDeletePin = { viewModel.removePin(it) },
-                            onDeleteFavorite = { viewModel.removeFavorite(it) },
-                            onDeleteNote = { viewModel.deleteNote(it) }
-                        )
-                        4 -> StatsScreen(
-                            currentStreakDays = streakDays,
-                            readTodayMinutes = readTodayMin,
-                            readTargetMinutes = readTargetMin,
-                            weeklyStats = viewModel.weeklyStats,
-                            weeklyReadingSummary = weeklyReadingSummary,
-                            dailyReminderSettings = dailyReminderSettings,
-                            onUpdateDailyReminder = { viewModel.updateDailyReminderSettings(it) },
-                            onSendTestReminder = { viewModel.sendTestDailyReminder() },
-                            currentUser = currentUser,
-                            cloudSyncStatus = cloudSyncStatus,
-                            cloudUserData = cloudUserData,
-                            onSignInWithGoogle = { viewModel.signInWithGoogle(context) },
-                            onQuickSignIn = { viewModel.quickConnectAccount() },
-                            onSyncNow = { viewModel.syncWithFirestore() },
-                            onSignOut = { viewModel.signOutFromFirebase() },
-                            lastReadList = lastReadList,
-                            onNavigateToAyah = { s, a -> viewModel.openSurah(s, a) }
-                        )
-                    }
-                }
 
-                // Mini / Persistent Floating Player Bar (shown on main screens when audio is active)
-                if (!isReadingMode && !isReciterSelectorOpen && (audioState.isPlaying || audioState.isBuffering || audioState.currentAyah != null)) {
-                    PersistentAudioPlayerBar(
-                        audioState = audioState,
-                        onExpandPlayer = { viewModel.setPlayerBottomSheetOpen(true) },
-                        onPlayPauseToggle = { viewModel.audioPlayer.togglePlayPause() },
-                        onSkipNext = { viewModel.audioPlayer.skipNext() },
-                        onSkipPrevious = { viewModel.audioPlayer.skipPrevious() },
-                        onClosePlayer = { viewModel.audioPlayer.stopAudio() },
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                    )
+                        NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 8.dp
+                        ) {
+                            NavigationBarItem(
+                                selected = currentTab == 0,
+                                onClick = { viewModel.setTab(0) },
+                                icon = { Icon(Icons.Default.MenuBook, contentDescription = "Home") },
+                                label = { Text("Home", fontSize = 11.sp) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = IslamicEmeraldPrimary,
+                                    selectedTextColor = IslamicEmeraldPrimary,
+                                    indicatorColor = IslamicEmeraldPrimary.copy(alpha = 0.15f)
+                                ),
+                                modifier = Modifier.testTag("nav_tab_home")
+                            )
+
+                            NavigationBarItem(
+                                selected = currentTab == 1,
+                                onClick = { viewModel.setTab(1) },
+                                icon = { Icon(Icons.Default.EventNote, contentDescription = "Planner") },
+                                label = { Text("Planner", fontSize = 11.sp) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = IslamicEmeraldPrimary,
+                                    selectedTextColor = IslamicEmeraldPrimary,
+                                    indicatorColor = IslamicEmeraldPrimary.copy(alpha = 0.15f)
+                                ),
+                                modifier = Modifier.testTag("nav_tab_planner")
+                            )
+
+                            NavigationBarItem(
+                                selected = currentTab == 2,
+                                onClick = { viewModel.setTab(2) },
+                                icon = { Icon(Icons.Default.Category, contentDescription = "Topics") },
+                                label = { Text("Topics", fontSize = 11.sp) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = IslamicEmeraldPrimary,
+                                    selectedTextColor = IslamicEmeraldPrimary,
+                                    indicatorColor = IslamicEmeraldPrimary.copy(alpha = 0.15f)
+                                ),
+                                modifier = Modifier.testTag("nav_tab_topics")
+                            )
+
+                            NavigationBarItem(
+                                selected = currentTab == 3,
+                                onClick = { viewModel.setTab(3) },
+                                icon = { Icon(Icons.Default.Bookmarks, contentDescription = "Library") },
+                                label = { Text("Library", fontSize = 11.sp) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = IslamicEmeraldPrimary,
+                                    selectedTextColor = IslamicEmeraldPrimary,
+                                    indicatorColor = IslamicEmeraldPrimary.copy(alpha = 0.15f)
+                                ),
+                                modifier = Modifier.testTag("nav_tab_library")
+                            )
+
+                            NavigationBarItem(
+                                selected = currentTab == 4,
+                                onClick = { viewModel.setTab(4) },
+                                icon = { Icon(Icons.Default.Insights, contentDescription = "Stats") },
+                                label = { Text("Stats", fontSize = 11.sp) },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = IslamicEmeraldPrimary,
+                                    selectedTextColor = IslamicEmeraldPrimary,
+                                    indicatorColor = IslamicEmeraldPrimary.copy(alpha = 0.15f)
+                                ),
+                                modifier = Modifier.testTag("nav_tab_stats")
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -912,6 +1054,25 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
             onApplyPreset = { preset -> viewModel.applyTypographyPreset(preset) },
             onResetDefaults = { viewModel.resetTypographySettings() },
             onDismiss = { viewModel.setFontSettingsOpen(false) }
+        )
+    }
+
+    // Recitation Mode Selection Bottom Sheet (Letter by Letter, Word by Word, Ayah by Ayah, Surah by Surah)
+    if (isRecitationModeMenuOpen) {
+        RecitationModeSelectionSheet(
+            currentMode = readingSettings.recitationMode,
+            onSelectMode = { mode ->
+                viewModel.setRecitationMode(mode)
+            },
+            wordPauseDurationMs = readingSettings.wordPauseDurationMs,
+            onWordPauseDurationChange = { duration ->
+                viewModel.setWordPauseDuration(duration)
+            },
+            letterPauseDurationMs = readingSettings.letterPauseDurationMs,
+            onLetterPauseDurationChange = { duration ->
+                viewModel.setLetterPauseDuration(duration)
+            },
+            onDismiss = { viewModel.setRecitationModeMenuOpen(false) }
         )
     }
 

@@ -273,6 +273,52 @@ fun QuickSettingsModalSheet(
 
             Divider(modifier = Modifier.padding(vertical = 12.dp))
 
+            // Scroll Behavior: Hide / Reveal on Scroll
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSettingsChange(settings.copy(hideBarsOnScroll = !settings.hideBarsOnScroll)) }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.SwapVert,
+                                contentDescription = null,
+                                tint = IslamicEmeraldPrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "স্ক্রল করলে বার লুকান (Hide on Scroll)",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "পড়ার সময় স্ক্রল করলে মেনু বার লুকাবে, স্ক্রল থামালে বা ট্যাপে ভেসে উঠবে",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = settings.hideBarsOnScroll,
+                        onCheckedChange = { onSettingsChange(settings.copy(hideBarsOnScroll = it)) },
+                        colors = SwitchDefaults.colors(checkedThumbColor = IslamicEmeraldPrimary)
+                    )
+                }
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 12.dp))
+
             // Recitation Mode Selector
             RecitationModeQuickSelectorCard(
                 currentMode = settings.recitationMode,

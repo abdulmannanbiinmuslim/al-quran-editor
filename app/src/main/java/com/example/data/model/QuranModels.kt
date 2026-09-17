@@ -293,7 +293,8 @@ data class ReadingSettings(
     val appColorTheme: AppColorTheme = AppColorTheme.EMERALD,
     val nightModeOption: NightModeOption = NightModeOption.LIGHT,
     val highContrastNightText: Boolean = true,
-    val showSessionSummary: Boolean = true
+    val showSessionSummary: Boolean = true,
+    val hideBarsOnScroll: Boolean = true
 )
 
 data class DailyVersesMetric(

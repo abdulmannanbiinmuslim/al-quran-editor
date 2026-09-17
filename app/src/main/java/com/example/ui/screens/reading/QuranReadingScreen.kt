@@ -1,9 +1,13 @@
 package com.example.ui.screens.reading
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -22,8 +26,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -133,306 +143,378 @@ fun QuranReadingScreen(
         ayahs.groupBy { it.pageNumber }
     }
 
-    Scaffold(
-        topBar = {
-            Surface(
-                color = IslamicEmeraldPrimary,
-                contentColor = Color.White,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.statusBarsPadding()) {
-                    // 1. Main Navigation App Bar
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .padding(horizontal = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+    // GM3 Expressive Guidelines: Hide / Reveal on Scroll
+    var isBarsVisible by remember { mutableStateOf(true) }
+
+    // Directional nested scroll connection
+    val nestedScrollConnection = remember(settings.hideBarsOnScroll) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (!settings.hideBarsOnScroll) return Offset.Zero
+                val deltaY = available.y
+                // Downward scroll (reading ahead): hide bars for full-screen reading
+                if (deltaY < -4f) {
+                    if (isBarsVisible && (listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 8)) {
+                        isBarsVisible = false
+                    }
+                } else if (deltaY > 6f) {
+                    // Upward scroll (re-reading): reveal bars immediately
+                    if (!isBarsVisible) {
+                        isBarsVisible = true
+                    }
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    // Auto-reveal on scroll idle ("আবার স্ক্রল থামালে... ভেসে ওঠে (Reveal)")
+    LaunchedEffect(listState.isScrollInProgress, settings.hideBarsOnScroll) {
+        if (!settings.hideBarsOnScroll) {
+            isBarsVisible = true
+            return@LaunchedEffect
+        }
+        if (!listState.isScrollInProgress) {
+            // Scroll paused / stopped: wait for user rest (700ms) then reveal
+            delay(700L)
+            if (!listState.isScrollInProgress) {
+                isBarsVisible = true
+            }
+        }
+    }
+
+    // Keep bars visible at the very top of surah
+    val isReadingAtTop by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 15
+        }
+    }
+    LaunchedEffect(isReadingAtTop) {
+        if (isReadingAtTop) {
+            isBarsVisible = true
+        }
+    }
+
+    val readingTopBar: @Composable () -> Unit = {
+        Surface(
+            color = IslamicEmeraldPrimary,
+            contentColor = Color.White,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.statusBarsPadding()) {
+                // 1. Main Navigation App Bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .padding(horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Left: Back Arrow
+                    IconButton(
+                        onClick = {
+                            haptics.tap()
+                            onBack()
+                        },
+                        modifier = Modifier.testTag("reading_back_button")
                     ) {
-                        // Left: Back Arrow
-                        IconButton(
-                            onClick = {
-                                haptics.tap()
-                                onBack()
-                            },
-                            modifier = Modifier.testTag("reading_back_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White
-                            )
-                        }
-
-                        // Center: Surah Title Dropdown
-                        Surface(
-                            onClick = {
-                                haptics.tap()
-                                onTitleClick()
-                            },
-                            color = Color.White.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(20.dp),
-                            modifier = Modifier.testTag("reading_title_clickable")
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = "${surah.number}. ${surah.banglaTranslation} (${surah.englishName})",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp
-                                    )
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = "Select Surah",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-
-                        // Right Action Buttons: Layout, Font studio, Quick Settings
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(
-                                onClick = {
-                                    haptics.tap()
-                                    onToggleLayoutMode()
-                                },
-                                modifier = Modifier.testTag("toggle_reading_mode_button")
-                            ) {
-                                Icon(
-                                    imageVector = if (settings.layoutMode == ReadingLayoutMode.LYRICS_AYAH_BY_AYAH)
-                                        Icons.Default.MenuBook
-                                    else
-                                        Icons.Default.FormatAlignLeft,
-                                    contentDescription = "Toggle Mode",
-                                    tint = Color.White
-                                )
-                            }
-
-                            IconButton(
-                                onClick = {
-                                    haptics.tap()
-                                    onOpenRecitationModeMenu()
-                                },
-                                modifier = Modifier.testTag("reading_recitation_mode_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.RecordVoiceOver,
-                                    contentDescription = "Recitation Modes (${settings.recitationMode.banglaTitle})",
-                                    tint = Color.White
-                                )
-                            }
-
-                            IconButton(
-                                onClick = {
-                                    haptics.tap()
-                                    onOpenFontSettings()
-                                },
-                                modifier = Modifier.testTag("reading_font_settings_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Tune,
-                                    contentDescription = "Tune & Font Studio",
-                                    tint = Color.White
-                                )
-                            }
-
-                            IconButton(
-                                onClick = {
-                                    haptics.tap()
-                                    onOpenQuickSettings()
-                                },
-                                modifier = Modifier.testTag("reading_quick_settings_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Menu,
-                                    contentDescription = "Menu / Quick Settings",
-                                    tint = Color.White
-                                )
-                            }
-                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
                     }
 
-                    // 2. Sub-Header Information Strip
-                    val firstAyah = ayahs.firstOrNull()
-                    val juzNum = firstAyah?.juzNumber ?: surah.startJuz
-                    val hizbNum = firstAyah?.hizbNumber ?: surah.startHizb
-                    val pageNum = firstAyah?.pageNumber ?: surah.startPage
-                    val rukuNum = firstAyah?.rukuNumber ?: surah.startRuku
-
+                    // Center: Surah Title Dropdown
                     Surface(
                         onClick = {
                             haptics.tap()
                             onTitleClick()
                         },
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("reading_subheader_jump")
+                        color = Color.White.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.testTag("reading_title_clickable")
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "পারা $juzNum  •  Hizb $hizbNum  •  পৃষ্ঠা $pageNum  •  রকু $rukuNum",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = "Jump",
-                                    tint = IslamicEmeraldPrimary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-
-                            Surface(
-                                onClick = {
-                                    haptics.tap()
-                                    showJuzInfoDialog = true
-                                },
-                                color = Color.Transparent,
-                                shape = RoundedCornerShape(4.dp)
-                            ) {
-                                Text(
-                                    text = "Juz info",
-                                    fontSize = 12.sp,
+                            Text(
+                                text = "${surah.number}. ${surah.banglaTranslation} (${surah.englishName})",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    color = Color.White,
                                     fontWeight = FontWeight.Bold,
-                                    color = IslamicEmeraldPrimary,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                    fontSize = 14.sp
                                 )
-                            }
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Select Surah",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    // Right Action Buttons: Layout, Font studio, Quick Settings
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = {
+                                haptics.tap()
+                                onToggleLayoutMode()
+                            },
+                            modifier = Modifier.testTag("toggle_reading_mode_button")
+                        ) {
+                            Icon(
+                                imageVector = if (settings.layoutMode == ReadingLayoutMode.LYRICS_AYAH_BY_AYAH)
+                                    Icons.Default.MenuBook
+                                else
+                                    Icons.Default.FormatAlignLeft,
+                                contentDescription = "Toggle Mode",
+                                tint = Color.White
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                haptics.tap()
+                                onOpenRecitationModeMenu()
+                            },
+                            modifier = Modifier.testTag("reading_recitation_mode_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.RecordVoiceOver,
+                                contentDescription = "Recitation Modes (${settings.recitationMode.banglaTitle})",
+                                tint = Color.White
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                haptics.tap()
+                                onOpenFontSettings()
+                            },
+                            modifier = Modifier.testTag("reading_font_settings_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = "Tune & Font Studio",
+                                tint = Color.White
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                haptics.tap()
+                                onOpenQuickSettings()
+                            },
+                            modifier = Modifier.testTag("reading_quick_settings_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Menu,
+                                contentDescription = "Menu / Quick Settings",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                }
+
+                // 2. Sub-Header Information Strip
+                val firstAyah = ayahs.firstOrNull()
+                val juzNum = firstAyah?.juzNumber ?: surah.startJuz
+                val hizbNum = firstAyah?.hizbNumber ?: surah.startHizb
+                val pageNum = firstAyah?.pageNumber ?: surah.startPage
+                val rukuNum = firstAyah?.rukuNumber ?: surah.startRuku
+
+                Surface(
+                    onClick = {
+                        haptics.tap()
+                        onTitleClick()
+                    },
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("reading_subheader_jump")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "পারা $juzNum  •  Hizb $hizbNum  •  পৃষ্ঠা $pageNum  •  রকু $rukuNum",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Jump",
+                                tint = IslamicEmeraldPrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        Surface(
+                            onClick = {
+                                haptics.tap()
+                                showJuzInfoDialog = true
+                            },
+                            color = Color.Transparent,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "Juz info",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = IslamicEmeraldPrimary,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
                         }
                     }
                 }
             }
-        },
-        bottomBar = {
-            Column {
-                // Floating Auto Scroll Speed Controller
-                AnimatedVisibility(
-                    visible = isAutoScrollActive,
-                    enter = slideInVertically { it } + fadeIn(),
-                    exit = slideOutVertically { it } + fadeOut()
-                ) {
-                    Surface(
-                        color = IslamicEmeraldDark,
-                        contentColor = Color.White,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(onClick = {
-                                    haptics.fontSizeTick()
-                                    onAutoScrollSpeedChange(autoScrollSpeed - 1)
-                                }) {
-                                    Icon(Icons.Default.RemoveCircleOutline, contentDescription = "Slower", tint = Color.White)
-                                }
-                                Text(
-                                    text = "অটো স্ক্রল: ${autoScrollSpeed}x",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = QuranGold
-                                )
-                                IconButton(onClick = {
-                                    haptics.fontSizeTick()
-                                    onAutoScrollSpeedChange(autoScrollSpeed + 1)
-                                }) {
-                                    Icon(Icons.Default.AddCircleOutline, contentDescription = "Faster", tint = Color.White)
-                                }
-                            }
+        }
+    }
 
-                            IconButton(onClick = {
-                                haptics.tap()
-                                onToggleAutoScroll()
-                            }) {
-                                Icon(Icons.Default.Close, contentDescription = "Stop", tint = Color.White)
-                            }
-                        }
-                    }
-                }
-
-                // Bottom Navigation Bar Actions
+    val readingBottomBar: @Composable () -> Unit = {
+        Column {
+            // Floating Auto Scroll Speed Controller
+            AnimatedVisibility(
+                visible = isAutoScrollActive,
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut()
+            ) {
                 Surface(
-                    color = IslamicEmeraldPrimary,
+                    color = IslamicEmeraldDark,
                     contentColor = Color.White,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .navigationBarsPadding()
-                            .height(56.dp),
-                        horizontalArrangement = Arrangement.SpaceAround,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        BottomBarActionButton(
-                            icon = Icons.Outlined.Translate,
-                            label = "অনুবাদ",
-                            onClick = {
-                                haptics.tap()
-                                onOpenContents()
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = {
+                                haptics.fontSizeTick()
+                                onAutoScrollSpeedChange(autoScrollSpeed - 1)
+                            }) {
+                                Icon(Icons.Default.RemoveCircleOutline, contentDescription = "Slower", tint = Color.White)
                             }
-                        )
+                            Text(
+                                text = "অটো স্ক্রল: ${autoScrollSpeed}x",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = QuranGold
+                            )
+                            IconButton(onClick = {
+                                haptics.fontSizeTick()
+                                onAutoScrollSpeedChange(autoScrollSpeed + 1)
+                            }) {
+                                Icon(Icons.Default.AddCircleOutline, contentDescription = "Faster", tint = Color.White)
+                            }
+                        }
 
-                        BottomBarActionButton(
-                            icon = if (isAutoScrollActive) Icons.Default.PauseCircle else Icons.Outlined.SwapVert,
-                            label = "অটোস্ক্রল",
-                            onClick = {
-                                haptics.tap()
-                                onToggleAutoScroll()
-                            }
-                        )
-
-                        BottomBarActionButton(
-                            icon = if (audioState.isPlaying) Icons.Default.PauseCircle else Icons.Outlined.PlayCircleOutline,
-                            label = if (audioState.isPlaying) "চলছে (${audioState.currentAyahNumber})" else "অডিও",
-                            onClick = {
-                                haptics.tap()
-                                onOpenPlayerBottomSheet()
-                            }
-                        )
-
-                        BottomBarActionButton(
-                            icon = Icons.Outlined.CalendarMonth,
-                            label = "প্ল্যানার",
-                            onClick = {
-                                haptics.tap()
-                                onOpenPlanner()
-                            }
-                        )
+                        IconButton(onClick = {
+                            haptics.tap()
+                            onToggleAutoScroll()
+                        }) {
+                            Icon(Icons.Default.Close, contentDescription = "Stop", tint = Color.White)
+                        }
                     }
                 }
             }
-        },
+
+            // Bottom Navigation Bar Actions
+            Surface(
+                color = IslamicEmeraldPrimary,
+                contentColor = Color.White,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .height(56.dp),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    BottomBarActionButton(
+                        icon = Icons.Outlined.Translate,
+                        label = "অনুবাদ",
+                        onClick = {
+                            haptics.tap()
+                            onOpenContents()
+                        }
+                    )
+
+                    BottomBarActionButton(
+                        icon = if (isAutoScrollActive) Icons.Default.PauseCircle else Icons.Outlined.SwapVert,
+                        label = "অটোস্ক্রল",
+                        onClick = {
+                            haptics.tap()
+                            onToggleAutoScroll()
+                        }
+                    )
+
+                    BottomBarActionButton(
+                        icon = if (audioState.isPlaying) Icons.Default.PauseCircle else Icons.Outlined.PlayCircleOutline,
+                        label = if (audioState.isPlaying) "চলছে (${audioState.currentAyahNumber})" else "অডিও",
+                        onClick = {
+                            haptics.tap()
+                            onOpenPlayerBottomSheet()
+                        }
+                    )
+
+                    BottomBarActionButton(
+                        icon = Icons.Outlined.CalendarMonth,
+                        label = "প্ল্যানার",
+                        onClick = {
+                            haptics.tap()
+                            onOpenPlanner()
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    Box(
         modifier = modifier
-    ) { innerPadding ->
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+        // 1. Reading Canvas (Full Screen LazyColumn with Edge-to-Edge Insets)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
+                .nestedScroll(nestedScrollConnection)
+                .pointerInput(isBarsVisible) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            if (event.type == PointerEventType.Press) {
+                                // Touch / tap anywhere to reveal ("বা স্পর্শ করলে সেগুলো ভেসে ওঠে")
+                                if (!isBarsVisible) {
+                                    isBarsVisible = true
+                                }
+                            }
+                        }
+                    }
+                }
                 .pointerInput(Unit) {
                     detectTransformGestures { _, _, zoom, _ ->
                         if (zoom != 1f) {
@@ -450,11 +532,22 @@ fun QuranReadingScreen(
                         }
                     }
                 }
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = {
+                            isBarsVisible = !isBarsVisible
+                            haptics.tap()
+                        }
+                    )
+                }
         ) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 24.dp)
+                contentPadding = PaddingValues(
+                    top = statusBarTop + 96.dp,
+                    bottom = navBarBottom + 76.dp
+                )
             ) {
                 // Layout Mode 1: CONTINUOUS MUSHAF READING
                 if (settings.layoutMode == ReadingLayoutMode.PAGE_MUSHAF) {
@@ -541,35 +634,121 @@ fun QuranReadingScreen(
                     }
                 }
             }
+        }
 
-            // Pinch-To-Zoom Visual HUD Indicator
-            AnimatedVisibility(
-                visible = showZoomHud,
-                enter = fadeIn() + scaleIn(),
-                exit = fadeOut() + scaleOut(),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 16.dp)
+        // 2. Animated Top Bar (Hide / Reveal on Scroll)
+        AnimatedVisibility(
+            visible = isBarsVisible,
+            enter = slideInVertically(
+                initialOffsetY = { -it },
+                animationSpec = spring(
+                    dampingRatio = 0.82f,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            ) + fadeIn(animationSpec = tween(220)),
+            exit = slideOutVertically(
+                targetOffsetY = { -it },
+                animationSpec = spring(
+                    dampingRatio = 0.82f,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            ) + fadeOut(animationSpec = tween(180)),
+            modifier = Modifier.align(Alignment.TopCenter)
+        ) {
+            readingTopBar()
+        }
+
+        // 3. Animated Bottom Bar (Hide / Reveal on Scroll)
+        AnimatedVisibility(
+            visible = isBarsVisible,
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = spring(
+                    dampingRatio = 0.82f,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            ) + fadeIn(animationSpec = tween(220)),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = spring(
+                    dampingRatio = 0.82f,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            ) + fadeOut(animationSpec = tween(180)),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            readingBottomBar()
+        }
+
+        // 4. Subtle Floating "Reveal Menu" Chip (Visible when bars are hidden)
+        AnimatedVisibility(
+            visible = !isBarsVisible,
+            enter = fadeIn(animationSpec = tween(250)) + scaleIn(initialScale = 0.85f),
+            exit = fadeOut(animationSpec = tween(200)) + scaleOut(targetScale = 0.85f),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 20.dp)
+                .navigationBarsPadding()
+        ) {
+            Surface(
+                onClick = {
+                    haptics.tap()
+                    isBarsVisible = true
+                },
+                shape = RoundedCornerShape(20.dp),
+                color = IslamicEmeraldPrimary.copy(alpha = 0.92f),
+                contentColor = Color.White,
+                shadowElevation = 6.dp,
+                modifier = Modifier.testTag("btn_reveal_bars_floating")
             ) {
-                Surface(
-                    color = IslamicEmeraldDark.copy(alpha = 0.92f),
-                    contentColor = Color.White,
-                    shape = RoundedCornerShape(24.dp),
-                    shadowElevation = 8.dp
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
-                    ) {
-                        Icon(Icons.Default.FormatSize, contentDescription = null, tint = QuranGold, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "আরবি সাইজ: ${currentArabicSize.toInt()}sp • অনুবাদ: ${currentTranslationSize.toInt()}sp",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.FullscreenExit,
+                        contentDescription = "Reveal Bars",
+                        modifier = Modifier.size(15.dp),
+                        tint = QuranGold
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = "মেনু দেখান",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+
+        // 5. Pinch-To-Zoom Visual HUD Indicator
+        AnimatedVisibility(
+            visible = showZoomHud,
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 50.dp)
+        ) {
+            Surface(
+                color = IslamicEmeraldDark.copy(alpha = 0.92f),
+                contentColor = Color.White,
+                shape = RoundedCornerShape(24.dp),
+                shadowElevation = 8.dp
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
+                ) {
+                    Icon(Icons.Default.FormatSize, contentDescription = null, tint = QuranGold, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "আরবি সাইজ: ${currentArabicSize.toInt()}sp • অনুবাদ: ${currentTranslationSize.toInt()}sp",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
                 }
             }
         }

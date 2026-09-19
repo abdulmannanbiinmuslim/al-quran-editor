@@ -28,6 +28,7 @@ import com.example.data.model.TopicVerseRef
 import com.example.data.repository.TopicsData
 import com.example.ui.theme.IslamicEmeraldContainer
 import com.example.ui.theme.IslamicEmeraldPrimary
+import androidx.activity.compose.BackHandler
 import com.example.ui.theme.LightDivider
 import com.example.ui.theme.QuranGold
 
@@ -37,6 +38,10 @@ fun TopicsScreen(
     modifier: Modifier = Modifier
 ) {
     var selectedTopic by remember { mutableStateOf<TopicItem?>(null) }
+
+    BackHandler(enabled = selectedTopic != null) {
+        selectedTopic = null
+    }
 
     Column(
         modifier = modifier

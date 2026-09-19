@@ -1,5 +1,8 @@
 package com.example.ui.screens.home
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -55,6 +58,8 @@ fun HomeScreen(
     weeklyReadingSummary: WeeklyReadingSummary? = null,
     onViewFullStats: () -> Unit = {},
     listState: androidx.compose.foundation.lazy.LazyListState = rememberLazyListState(),
+    isBarsVisible: Boolean = true,
+    isSearchActive: Boolean = false,
     contentPadding: PaddingValues = PaddingValues(bottom = 90.dp),
     modifier: Modifier = Modifier
 ) {
@@ -287,42 +292,74 @@ fun HomeScreen(
 
         // 5. STICKY SECONDARY TAB ROW ( সূরা, পৃষ্ঠা, পারা, হিযব, রুকু )
         stickyHeader(key = "sticky_tab_row") {
+            val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+            val totalTopBarHeight = statusBarTop + 56.dp + (if (isSearchActive) 56.dp else 0.dp)
+
+            val isSticky by remember(displayLastRead.isNotEmpty()) {
+                derivedStateOf {
+                    val firstVisible = listState.firstVisibleItemIndex
+                    val stickyIndex = if (displayLastRead.isNotEmpty()) 4 else 3
+                    firstVisible >= stickyIndex
+                }
+            }
+
+            val targetTopPadding = if (isSticky) {
+                if (isBarsVisible) totalTopBarHeight else statusBarTop
+            } else {
+                0.dp
+            }
+
+            val animatedTopPadding by animateDpAsState(
+                targetValue = targetTopPadding,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                ),
+                label = "stickyTabTopPadding"
+            )
+
             Surface(
                 color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 3.dp,
+                shadowElevation = if (isSticky) 4.dp else 2.dp,
                 tonalElevation = 2.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                SecondaryTabRow(
-                    selectedTabIndex = activeSubTab.ordinal,
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = IslamicEmeraldPrimary,
-                    modifier = Modifier.fillMaxWidth()
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = animatedTopPadding.coerceAtLeast(0.dp))
                 ) {
-                    ReadingViewMode.values().forEach { mode ->
-                        val isSelected = activeSubTab == mode
-                        val label = when (mode) {
-                            ReadingViewMode.SURAH -> "সূরা"
-                            ReadingViewMode.PAGE -> "পৃষ্ঠা"
-                            ReadingViewMode.JUZ -> "পারা"
-                            ReadingViewMode.HIZB -> "হিযব"
-                            ReadingViewMode.RUKU -> "রুকু"
-                        }
+                    SecondaryTabRow(
+                        selectedTabIndex = activeSubTab.ordinal,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = IslamicEmeraldPrimary,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ReadingViewMode.values().forEach { mode ->
+                            val isSelected = activeSubTab == mode
+                            val label = when (mode) {
+                                ReadingViewMode.SURAH -> "সূরা"
+                                ReadingViewMode.PAGE -> "পৃষ্ঠা"
+                                ReadingViewMode.JUZ -> "পারা"
+                                ReadingViewMode.HIZB -> "হিযব"
+                                ReadingViewMode.RUKU -> "রুকু"
+                            }
 
-                        Tab(
-                            selected = isSelected,
-                            onClick = { onSubTabChange(mode) },
-                            text = {
-                                Text(
-                                    text = label,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    fontSize = 13.5.sp
-                                )
-                            },
-                            selectedContentColor = IslamicEmeraldPrimary,
-                            unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.testTag("home_subtab_$label")
-                        )
+                            Tab(
+                                selected = isSelected,
+                                onClick = { onSubTabChange(mode) },
+                                text = {
+                                    Text(
+                                        text = label,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        fontSize = 13.5.sp
+                                    )
+                                },
+                                selectedContentColor = IslamicEmeraldPrimary,
+                                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.testTag("home_subtab_$label")
+                            )
+                        }
                     }
                 }
             }

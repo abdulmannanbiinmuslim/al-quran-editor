@@ -14,6 +14,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -35,9 +36,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -163,22 +161,22 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
     var isFloatingMenuOpen by remember { mutableStateOf(false) }
 
     val homeListState = rememberLazyListState()
-    var isHomeBarsVisible by remember { mutableStateOf(true) }
+    var isBarsVisible by remember { mutableStateOf(true) }
 
-    val homeNestedScrollConnection = remember(readingSettings.hideBarsOnScroll) {
+    val barsNestedScrollConnection = remember(readingSettings.hideBarsOnScroll) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (!readingSettings.hideBarsOnScroll) return Offset.Zero
                 val deltaY = available.y
-                // Downward scroll: hide bars
+                // Downward scroll: finger moves up, content scrolls down -> hide bars
                 if (deltaY < -4f) {
-                    if (isHomeBarsVisible && (homeListState.firstVisibleItemIndex > 0 || homeListState.firstVisibleItemScrollOffset > 8)) {
-                        isHomeBarsVisible = false
+                    if (isBarsVisible) {
+                        isBarsVisible = false
                     }
                 } else if (deltaY > 6f) {
-                    // Upward scroll: reveal bars
-                    if (!isHomeBarsVisible) {
-                        isHomeBarsVisible = true
+                    // Upward scroll: finger moves down, content scrolls up -> reveal bars
+                    if (!isBarsVisible) {
+                        isBarsVisible = true
                     }
                 }
                 return Offset.Zero
@@ -186,23 +184,9 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
         }
     }
 
-    // Auto-reveal on scroll idle for home
-    LaunchedEffect(homeListState.isScrollInProgress, readingSettings.hideBarsOnScroll) {
-        if (!readingSettings.hideBarsOnScroll) {
-            isHomeBarsVisible = true
-            return@LaunchedEffect
-        }
-        if (!homeListState.isScrollInProgress) {
-            delay(700L)
-            if (!homeListState.isScrollInProgress) {
-                isHomeBarsVisible = true
-            }
-        }
-    }
-
     // Reset visibility to true when switching tabs or toggling search
     LaunchedEffect(currentTab, isSearchActive) {
-        isHomeBarsVisible = true
+        isBarsVisible = true
     }
 
     // Keep visible at the very top of home screen
@@ -211,9 +195,9 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
             homeListState.firstVisibleItemIndex == 0 && homeListState.firstVisibleItemScrollOffset < 15
         }
     }
-    LaunchedEffect(isHomeAtTop) {
-        if (isHomeAtTop) {
-            isHomeBarsVisible = true
+    LaunchedEffect(isHomeAtTop, currentTab) {
+        if (currentTab == 0 && isHomeAtTop) {
+            isBarsVisible = true
         }
     }
 
@@ -267,6 +251,35 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
         val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val hasMiniPlayer = !isReadingMode && !isReciterSelectorOpen && (audioState.isPlaying || audioState.isBuffering || audioState.currentAyah != null)
+
+        val animatedContentTopPadding by animateDpAsState(
+            targetValue = if (isBarsVisible || !readingSettings.hideBarsOnScroll) {
+                statusBarTop + 56.dp + (if (isSearchActive) 56.dp else 0.dp)
+            } else {
+                statusBarTop
+            },
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            label = "contentTopPadding"
+        )
+
+        val animatedContentBottomPadding by animateDpAsState(
+            targetValue = if (isBarsVisible || !readingSettings.hideBarsOnScroll) {
+                navBarBottom + 80.dp + (if (hasMiniPlayer) 60.dp else 0.dp)
+            } else {
+                navBarBottom
+            },
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            label = "contentBottomPadding"
+        )
+
+        val safeContentTopPadding = animatedContentTopPadding.coerceAtLeast(0.dp)
+        val safeContentBottomPadding = animatedContentBottomPadding.coerceAtLeast(0.dp)
 
         if (isReciterSelectorOpen) {
             ReciterSelectorScreen(
@@ -350,19 +363,8 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .nestedScroll(homeNestedScrollConnection)
-                    .pointerInput(isHomeBarsVisible) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                val event = awaitPointerEvent(PointerEventPass.Initial)
-                                if (event.type == PointerEventType.Press) {
-                                    if (!isHomeBarsVisible) {
-                                        isHomeBarsVisible = true
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    .background(MaterialTheme.colorScheme.background)
+                    .nestedScroll(barsNestedScrollConnection)
             ) {
                 // Screen Content
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -381,9 +383,11 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                             weeklyReadingSummary = weeklyReadingSummary,
                             onViewFullStats = { viewModel.setTab(4) },
                             listState = homeListState,
+                            isBarsVisible = isBarsVisible || !readingSettings.hideBarsOnScroll,
+                            isSearchActive = isSearchActive,
                             contentPadding = PaddingValues(
                                 top = statusBarTop + 56.dp + (if (isSearchActive) 56.dp else 0.dp),
-                                bottom = navBarBottom + 80.dp + (if (hasMiniPlayer) 60.dp else 0.dp)
+                                bottom = safeContentBottomPadding
                             )
                         )
                         1 -> PlannerScreen(
@@ -395,15 +399,15 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                             onCreatePlanner = { t, d, v -> viewModel.createCustomPlanner(t, d, v) },
                             onStartPlanner = { item -> viewModel.startFindPlanner(item) },
                             modifier = Modifier.padding(
-                                top = statusBarTop + 56.dp + (if (isSearchActive) 56.dp else 0.dp),
-                                bottom = navBarBottom + 80.dp + (if (hasMiniPlayer) 60.dp else 0.dp)
+                                top = safeContentTopPadding,
+                                bottom = safeContentBottomPadding
                             )
                         )
                         2 -> TopicsScreen(
                             onNavigateToAyah = { s, a -> viewModel.openSurah(s, a) },
                             modifier = Modifier.padding(
-                                top = statusBarTop + 56.dp + (if (isSearchActive) 56.dp else 0.dp),
-                                bottom = navBarBottom + 80.dp + (if (hasMiniPlayer) 60.dp else 0.dp)
+                                top = safeContentTopPadding,
+                                bottom = safeContentBottomPadding
                             )
                         )
                         3 -> LibraryScreen(
@@ -418,8 +422,8 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                             onDeleteFavorite = { viewModel.removeFavorite(it) },
                             onDeleteNote = { viewModel.deleteNote(it) },
                             modifier = Modifier.padding(
-                                top = statusBarTop + 56.dp + (if (isSearchActive) 56.dp else 0.dp),
-                                bottom = navBarBottom + 80.dp + (if (hasMiniPlayer) 60.dp else 0.dp)
+                                top = safeContentTopPadding,
+                                bottom = safeContentBottomPadding
                             )
                         )
                         4 -> StatsScreen(
@@ -441,8 +445,8 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
                             lastReadList = lastReadList,
                             onNavigateToAyah = { s, a -> viewModel.openSurah(s, a) },
                             modifier = Modifier.padding(
-                                top = statusBarTop + 56.dp + (if (isSearchActive) 56.dp else 0.dp),
-                                bottom = navBarBottom + 80.dp + (if (hasMiniPlayer) 60.dp else 0.dp)
+                                top = safeContentTopPadding,
+                                bottom = safeContentBottomPadding
                             )
                         )
                     }
@@ -450,7 +454,7 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
 
                 // 2. Animated Top Tool Bar (Hide / Reveal on Scroll)
                 AnimatedVisibility(
-                    visible = isHomeBarsVisible || !readingSettings.hideBarsOnScroll,
+                    visible = isBarsVisible || !readingSettings.hideBarsOnScroll,
                     enter = slideInVertically(
                         initialOffsetY = { -it },
                         animationSpec = spring(
@@ -491,7 +495,7 @@ fun QuranAppRoot(viewModel: QuranViewModel) {
 
                 // 3. Animated Bottom Bar & Persistent Mini Player (Hide / Reveal on Scroll)
                 AnimatedVisibility(
-                    visible = isHomeBarsVisible || !readingSettings.hideBarsOnScroll,
+                    visible = isBarsVisible || !readingSettings.hideBarsOnScroll,
                     enter = slideInVertically(
                         initialOffsetY = { it },
                         animationSpec = spring(

@@ -32,8 +32,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -164,21 +162,6 @@ fun QuranReadingScreen(
                     }
                 }
                 return Offset.Zero
-            }
-        }
-    }
-
-    // Auto-reveal on scroll idle ("আবার স্ক্রল থামালে... ভেসে ওঠে (Reveal)")
-    LaunchedEffect(listState.isScrollInProgress, settings.hideBarsOnScroll) {
-        if (!settings.hideBarsOnScroll) {
-            isBarsVisible = true
-            return@LaunchedEffect
-        }
-        if (!listState.isScrollInProgress) {
-            // Scroll paused / stopped: wait for user rest (700ms) then reveal
-            delay(700L)
-            if (!listState.isScrollInProgress) {
-                isBarsVisible = true
             }
         }
     }
@@ -502,19 +485,6 @@ fun QuranReadingScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .nestedScroll(nestedScrollConnection)
-                .pointerInput(isBarsVisible) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val event = awaitPointerEvent(PointerEventPass.Initial)
-                            if (event.type == PointerEventType.Press) {
-                                // Touch / tap anywhere to reveal ("বা স্পর্শ করলে সেগুলো ভেসে ওঠে")
-                                if (!isBarsVisible) {
-                                    isBarsVisible = true
-                                }
-                            }
-                        }
-                    }
-                }
                 .pointerInput(Unit) {
                     detectTransformGestures { _, _, zoom, _ ->
                         if (zoom != 1f) {
@@ -680,47 +650,6 @@ fun QuranReadingScreen(
             readingBottomBar()
         }
 
-        // 4. Subtle Floating "Reveal Menu" Chip (Visible when bars are hidden)
-        AnimatedVisibility(
-            visible = !isBarsVisible,
-            enter = fadeIn(animationSpec = tween(250)) + scaleIn(initialScale = 0.85f),
-            exit = fadeOut(animationSpec = tween(200)) + scaleOut(targetScale = 0.85f),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 20.dp)
-                .navigationBarsPadding()
-        ) {
-            Surface(
-                onClick = {
-                    haptics.tap()
-                    isBarsVisible = true
-                },
-                shape = RoundedCornerShape(20.dp),
-                color = IslamicEmeraldPrimary.copy(alpha = 0.92f),
-                contentColor = Color.White,
-                shadowElevation = 6.dp,
-                modifier = Modifier.testTag("btn_reveal_bars_floating")
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FullscreenExit,
-                        contentDescription = "Reveal Bars",
-                        modifier = Modifier.size(15.dp),
-                        tint = QuranGold
-                    )
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        text = "মেনু দেখান",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-            }
-        }
 
         // 5. Pinch-To-Zoom Visual HUD Indicator
         AnimatedVisibility(
